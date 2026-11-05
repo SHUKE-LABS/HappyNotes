@@ -2,6 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
+## v0.4.1 (2026-11-06)
+
+### Fixes
+- fix(web): open the OAuth page from a tap so popup blockers allow it (#63)
+
 ## v0.4.0 (2026-08-22)
 
 ### Features
