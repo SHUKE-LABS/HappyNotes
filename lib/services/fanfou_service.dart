@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:happy_notes/entities/fanfou_user_account.dart';
 import 'package:happy_notes/services/fanfou_user_account_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'seq_logger.dart';
 
 class FanfouService {
@@ -19,7 +18,8 @@ class FanfouService {
     this.maxPollAttempts = 60,
   }) : _fanfouUserAccountService = fanfouUserAccountService;
 
-  Future<List<FanfouUserAccount>> authorize() async {
+  /// [openUrl] shows the Fanfou authorize page to the user (see `openAuthUrl`).
+  Future<List<FanfouUserAccount>> authorize(Future<void> Function(Uri url) openUrl) async {
     // Snapshot the current linkage first: the backend replaces the account on a
     // successful authorization (delete + insert), minting a fresh id. Waiting
     // for an id that differs from this snapshot means a cancelled re-authorization
@@ -28,12 +28,7 @@ class FanfouService {
     final int? previousId = currentList.isNotEmpty ? currentList.first.id : null;
 
     final authorizeUrl = await _fanfouUserAccountService.requestToken();
-    final authUri = Uri.parse(authorizeUrl);
-    if (await canLaunchUrl(authUri)) {
-      await launchUrl(authUri);
-    } else {
-      throw Exception('Could not launch $authorizeUrl');
-    }
+    await openUrl(Uri.parse(authorizeUrl));
     return await waitForNewAccount(previousId);
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_notes/entities/mastodon_user_account.dart';
 import '../../dependency_injection.dart';
 import '../../services/mastodon_service.dart';
+import '../../utils/open_auth_url.dart';
 import '../../utils/util.dart';
 
 class AddMastodonUserAccount extends StatefulWidget {
@@ -59,7 +60,7 @@ class AddMastodonUserAccountState extends State<AddMastodonUserAccount> {
       if (instanceUrl.endsWith('/')) {
         instanceUrl = instanceUrl.substring(0, instanceUrl.length - 1);
       }
-      await _mastodonService.authorize(instanceUrl);
+      await _mastodonService.authorize(instanceUrl, (url) => openAuthUrl(context, url));
       Util.showInfo(scaffoldMessengerState, 'Authorization successful');
       navigator.pop();
     } catch (e) {

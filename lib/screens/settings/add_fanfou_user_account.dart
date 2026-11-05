@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../dependency_injection.dart';
 import '../../services/fanfou_service.dart';
+import '../../utils/open_auth_url.dart';
 import '../../utils/util.dart';
 
 class AddFanfouUserAccount extends StatefulWidget {
@@ -52,7 +53,7 @@ class AddFanfouUserAccountState extends State<AddFanfouUserAccount> {
     var navigator = Navigator.of(context);
     setState(() => _authorizing = true);
     try {
-      await _fanfouService.authorize();
+      await _fanfouService.authorize((url) => openAuthUrl(context, url));
       Util.showInfo(scaffoldMessengerState, 'Authorization successful');
       navigator.pop();
     } catch (e) {

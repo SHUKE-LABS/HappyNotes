@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:happy_notes/entities/mastodon_user_account.dart';
 import 'package:happy_notes/services/mastodon_user_account_service.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../app_config.dart';
 import 'mastodon_application_service.dart';
 import 'seq_logger.dart';
@@ -21,7 +20,8 @@ class MastodonService {
   String? instanceUrl;
   String? accessToken;
 
-  Future<List<MastodonUserAccount>> authorize(String instanceUrl) async {
+  /// [openUrl] shows the instance's authorize page to the user (see `openAuthUrl`).
+  Future<List<MastodonUserAccount>> authorize(String instanceUrl, Future<void> Function(Uri url) openUrl) async {
     this.instanceUrl = instanceUrl;
 
     var application = await _mastodonApplicationService.get(instanceUrl);
@@ -40,11 +40,7 @@ class MastodonService {
       'state': state,
     });
 
-    if (await canLaunchUrl(authUrl)) {
-      await launchUrl(authUrl);
-    } else {
-      throw Exception('Could not launch $authUrl');
-    }
+    await openUrl(authUrl);
     return await _waitForAuthorization();
   }
 
