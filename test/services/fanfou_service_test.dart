@@ -73,4 +73,35 @@ void main() {
       expect(service.waitForNewAccount(1), throwsA(isA<Exception>()));
     });
   });
+
+  group('authorize', () {
+    const authorizeUrl = 'https://fanfou.com/oauth/authorize?oauth_token=t';
+
+    test('hands the authorize URL to openUrl, then waits for the new account', () async {
+      when(accountService.requestToken()).thenAnswer((_) async => authorizeUrl);
+      _stubGetAllSequence(accountService, [
+        [],
+        [],
+        [_account(2)],
+      ]);
+      final opened = <Uri>[];
+
+      final result = await service.authorize((url) async => opened.add(url));
+
+      expect(opened, [Uri.parse(authorizeUrl)]);
+      expect(result.single.id, 2);
+    });
+
+    test('stops without polling when openUrl fails (e.g. the user cancels)', () async {
+      when(accountService.requestToken()).thenAnswer((_) async => authorizeUrl);
+      when(accountService.getAll()).thenAnswer((_) async => []);
+
+      await expectLater(
+        service.authorize((url) async => throw Exception('Authorization cancelled')),
+        throwsA(isA<Exception>()),
+      );
+      // Only the pre-authorization snapshot; no poll after the failed open.
+      verify(accountService.getAll()).called(1);
+    });
+  });
 }
