@@ -48,6 +48,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey<String>('e2e-search-results-page'),
       appBar: AppBar(
         title: TappableAppBarTitle(
           title: 'Search: "${widget.query}"',

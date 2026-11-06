@@ -153,6 +153,7 @@ class NoteEditState extends State<NoteEdit> {
           Material(
             color: Colors.transparent,
             child: InkWell(
+              key: const ValueKey<String>('e2e-note-save'),
               onTap: (widget.isSaving || noteModel.isUploading)
                   ? null
                   : widget.onSubmit,
@@ -234,6 +235,7 @@ class NoteEditState extends State<NoteEdit> {
                 borderRadius: BorderRadius.circular(4.0),
               ),
               child: TextField(
+                key: const ValueKey<String>('e2e-note-editor'),
                 controller: noteEditController.textController,
                 undoController: _undoController,
                 focusNode: noteModel.focusNode,

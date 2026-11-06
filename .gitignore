@@ -35,6 +35,7 @@ api/
 .pub-cache/
 .pub/
 /build/
+tool/e2e/out/
 
 # Symbolication related
 app.*.symbols

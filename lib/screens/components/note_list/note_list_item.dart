@@ -58,6 +58,7 @@ class NoteListItem extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     return Stack(
+      key: ValueKey<String>('e2e-note-list-item-${note.id}'),
       children: [
         GestureDetector(
           onTap: () => callbacks.onTap?.call(note),

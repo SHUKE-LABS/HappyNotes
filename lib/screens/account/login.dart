@@ -54,6 +54,7 @@ class _LoginState extends State<Login> {
               ),
               const SizedBox(height: 32),
               TextFormField(
+                key: const ValueKey<String>('e2e-login-username'),
                 controller: _formModel.emailController,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
@@ -63,6 +64,7 @@ class _LoginState extends State<Login> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                key: const ValueKey<String>('e2e-login-password'),
                 controller: _formModel.passwordController,
                 obscureText: !_isPasswordVisible,
                 decoration: InputDecoration(
@@ -82,6 +84,7 @@ class _LoginState extends State<Login> {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
+                key: const ValueKey<String>('e2e-login-submit'),
                 onPressed: _isSubmitting ? null : () => _formModel.submitForm(context),
                 child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : const Text('Submit'),
               ),
