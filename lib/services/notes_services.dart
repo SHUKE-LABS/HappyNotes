@@ -1,4 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:happy_notes/apis/notes_api.dart';
+import 'package:happy_notes/entities/public_note.dart';
+import 'package:happy_notes/exceptions/public_note_not_found_exception.dart';
 import 'package:happy_notes/models/note_model.dart';
 import 'package:intl/intl.dart';
 import '../app_config.dart';
@@ -204,6 +207,33 @@ class NotesService {
     var apiResult = (await NotesApi.get(noteId)).data;
     if (!apiResult['successful']) throw ApiException(apiResult);
     return Note.fromJson(apiResult['data']);
+  }
+
+  Future<PublicNote> getPublic(int noteId) async {
+    if (noteId <= 0) throw const PublicNoteNotFoundException();
+
+    try {
+      final response = await NotesApi.getPublic(noteId);
+      if (response.statusCode == 404) {
+        throw const PublicNoteNotFoundException();
+      }
+
+      final apiResult = response.data;
+      _validateApiResponse(apiResult, 'getPublic');
+      if (!apiResult['successful']) throw ApiException(apiResult);
+
+      final data = apiResult['data'];
+      if (data is! Map) {
+        throw const FormatException('Invalid public note response data');
+      }
+
+      return PublicNote.fromJson(Map<String, dynamic>.from(data));
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        throw const PublicNoteNotFoundException();
+      }
+      rethrow;
+    }
   }
 
   Future<NotesResult> latestDeleted(int pageSize, int pageNumber) async {
