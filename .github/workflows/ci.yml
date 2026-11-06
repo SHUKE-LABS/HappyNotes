@@ -206,7 +206,7 @@ jobs:
       - name: Run integration tests
         run: |
           if [ -d "integration_test" ]; then
-            flutter test integration_test/
+            xvfb-run -a flutter test -d linux integration_test/
           else
             echo "No integration tests found, skipping..."
           fi
