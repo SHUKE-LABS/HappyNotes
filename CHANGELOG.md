@@ -2,6 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
+## v0.5.0 (2026-11-07)
+
+### Features
+- feat: add public note web pages (#65) (#66)
+
 ## v0.4.1 (2026-11-06)
 
 ### Fixes
