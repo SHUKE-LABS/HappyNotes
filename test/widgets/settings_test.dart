@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:happy_notes/app_config.dart';
 import 'package:happy_notes/app_constants.dart';
 import 'package:happy_notes/dependency_injection.dart' as di;
 import 'package:happy_notes/entities/user_settings.dart';
 import 'package:happy_notes/providers/auth_provider.dart';
 import 'package:happy_notes/screens/account/user_session.dart';
 import 'package:happy_notes/screens/settings/settings.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../test_helpers/seq_logger_setup.dart';
@@ -58,6 +60,13 @@ void main() {
       setupSeqLoggerForTesting();
       await GetIt.instance.reset();
       di.init();
+      PackageInfo.setMockInitialValues(
+        appName: 'HappyNotes',
+        packageName: 'com.shukebeta.happynotes',
+        version: '2.0.0',
+        buildNumber: '101',
+        buildSignature: '',
+      );
       UserSession().userSettings = [
         UserSettings(id: 1, userId: 123, settingName: AppConstants.markdownIsEnabled, settingValue: '0'),
         UserSettings(id: 2, userId: 123, settingName: AppConstants.privateNoteOnlyIsEnabled, settingValue: '0'),
@@ -113,6 +122,22 @@ void main() {
       expect(find.text('Mastodon Sync'), findsOneWidget);
       expect(find.text('Fanfou Sync'), findsOneWidget);
       expect(find.text('Ember Sync'), findsOneWidget);
+    });
+
+    testWidgets('shows the store version and build number', (tester) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AuthProvider>.value(
+          value: StubAuthProvider(),
+          child: const MaterialApp(home: Settings()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView), const Offset(0, -1000));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Version: 2.0.0 (101) · ${AppConfig.version}'),
+          findsOneWidget);
     });
   });
 }

@@ -2,6 +2,8 @@
 
 ## Overview
 
+Release versioning and store-release policy are documented in [RELEASING.md](RELEASING.md).
+
 This project includes a comprehensive CI/CD workflow that automatically runs tests whenever code is pushed to GitHub. The workflow is configured in `.github/workflows/ci.yml` and provides automated testing, code analysis, and build verification.
 
 ## Workflow Triggers

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT}/bin/lib/release.sh"
+
+case "${1:-}" in
+    "")
+        [[ $# -eq 0 ]] || {
+            printf 'Usage: %s [--release-as X.Y.Z]\n' "$0" >&2
+            exit 2
+        }
+        release_create_tag
+        ;;
+    --release-as)
+        [[ $# -eq 2 ]] || {
+            printf 'Usage: %s [--release-as X.Y.Z]\n' "$0" >&2
+            exit 2
+        }
+        release_create_tag_as "$2"
+        ;;
+    *)
+        printf 'Usage: %s [--release-as X.Y.Z]\n' "$0" >&2
+        exit 2
+        ;;
+esac

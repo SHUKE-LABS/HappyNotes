@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:happy_notes/services/seq_logger.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +18,7 @@ import '../../app_config.dart';
 import '../../app_constants.dart';
 import '../../dependency_injection.dart';
 import '../../utils/timezone_helper.dart';
+import '../../utils/app_version.dart';
 import '../components/timezone_dropdown_item.dart';
 import '../trash_bin/trash_bin_page.dart';
 
@@ -32,11 +35,28 @@ class SettingsState extends State<Settings> {
   final SettingsController _settingsController = locator<SettingsController>();
   User? _currentUser;
   bool _isLoadingAvatar = true;
+  PackageInfo? _packageInfo;
 
   @override
   void initState() {
     super.initState();
     _fetchUserInfoForAvatar();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    if (kIsWeb) return;
+
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _packageInfo = packageInfo;
+        });
+      }
+    } catch (e, stackTrace) {
+      SeqLogger.warning('Error loading package information: $e', e, stackTrace);
+    }
   }
 
   Future<void> _fetchUserInfoForAvatar() async {
@@ -253,7 +273,9 @@ class SettingsState extends State<Settings> {
             const SizedBox(height: 32),
             Center(
               child: Text(
-                'Version: ${AppConfig.version}',
+                _packageInfo == null
+                    ? 'Version: ${AppConfig.version}'
+                    : buildVersionText(_packageInfo!),
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
             ),
