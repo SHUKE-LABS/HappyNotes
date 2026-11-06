@@ -2,10 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
-## v0.5.0 (2026-11-07)
+## v0.6.0 … v0.5.0 (2026-11-07)
 
 ### Features
 - feat: add public note web pages (#65) (#66)
+- feat: establish release versioning foundation (#68)
 
 ## v0.4.1 (2026-11-06)
 
