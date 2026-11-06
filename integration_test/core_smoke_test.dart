@@ -91,6 +91,11 @@ void main() {
     );
     expect(deleteAction, findsOneWidget);
     await tester.tap(deleteAction);
+    await _pumpUntilFound(
+      tester,
+      find.text('Note deleted successfully.'),
+      timeout: const Duration(seconds: 60),
+    );
     await _pumpUntilAbsent(tester, searchResult,
         timeout: const Duration(seconds: 30));
     await _captureScreenshot(tester, evidenceDirectory, '05-note-deleted');
