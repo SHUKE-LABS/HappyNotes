@@ -10,6 +10,13 @@ class NotesApi {
     return await _dio.get('/note/get/$noteId');
   }
 
+  static Future<Response> getPublic(int noteId) async {
+    return await _dio.get(
+      '/Note/GetPublic/$noteId',
+      options: Options(headers: {'AllowAnonymous': true}),
+    );
+  }
+
   static Future<Response> delete(int noteId) async {
     return await _dio.delete('/note/delete/$noteId');
   }

@@ -24,6 +24,7 @@ import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 
 import 'app_config.dart';
+import 'utils/public_note_route.dart';
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -185,6 +186,7 @@ class HappyNotesState extends State<HappyNotesApp> {
       ),
       // Show main menu if already logged in, otherwise show login page
       home: const InitialPage(),
+      onGenerateRoute: generatePublicNoteRoute,
       navigatorObservers: [UserSession.routeObserver],
     );
   }

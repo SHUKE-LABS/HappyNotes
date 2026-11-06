@@ -47,6 +47,12 @@ This means that even if a note is private, the photos in it are public. This eli
 - Simply enter the note ID number and press "Go" to navigate directly to that note.
 - This feature provides quick access to specific notes when you know their ID, useful for referencing notes from external links or bookmarks.
 
+### Public note permalinks
+
+Public notes can be shared with the GitHub Pages-safe URL format `https://happynotes.shukebeta.com/#/note/{id}`. The page is read-only and can be opened without signing in; Markdown notes use the Markdown renderer and plain notes are shown as text.
+
+Private, soft-deleted, malformed, and nonexistent IDs all show the same not-found state. The public endpoint never exposes private note content or account controls.
+
 ### Supports uploading or pasting images
 
 - Currently, you need to enable Markdown support in the note editing interface to upload images. Just tap the Markdown switch below the edit box to turn this feature on/off. You can also turn Markdown support on/off in Settings -> Markdown.
