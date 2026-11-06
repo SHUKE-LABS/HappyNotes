@@ -10,6 +10,8 @@
 - Run specific test group: `flutter test test/path_to_test.dart --name="Group name"`
 - Analyze code: `flutter analyze`
 
+Release and versioning policy: [RELEASING.md](RELEASING.md)
+
 ## Code Style Guidelines
 - **Naming**: Classes=PascalCase, variables/methods=camelCase, files=snake_case, private members=_prefixed
 - **Imports**: Flutter packages first, project imports next, relative imports last

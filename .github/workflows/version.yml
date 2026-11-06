@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: 'Release version to tag (X.Y.Z)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,8 +28,14 @@ jobs:
 
       - name: Create release tag
         id: tag
+        env:
+          RELEASE_AS: ${{ inputs.release_as }}
         run: |
-          tag="$(bin/release-tag)"
+          if [[ -n "${RELEASE_AS}" ]]; then
+            tag="$(bin/tag-release --release-as "${RELEASE_AS}")"
+          else
+            tag="$(bin/tag-release)"
+          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Push tag

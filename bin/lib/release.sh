@@ -1,10 +1,15 @@
 # Release helpers for release tags and changelog generation.
 
-# Matches both the new bare form (vX.Y.Z) and the legacy -beta suffix, so
-# scanning history for "latest" keeps recognizing pre-existing -beta tags even
-# though we only ever produce the bare form going forward.
+# Matches the generated form (vX.Y.Z) and the legacy -beta suffix, so scanning
+# history for "latest" keeps recognizing pre-existing -beta tags even though
+# we only ever produce the bare form going forward.
 release_tag_regex() {
     printf '^v([0-9]+)\\.([0-9]+)\\.([0-9]+)(-beta)?$'
+}
+
+
+release_version_regex() {
+    printf '^([0-9]+)\\.([0-9]+)\\.([0-9]+)$'
 }
 
 
@@ -107,6 +112,54 @@ release_next_tag() {
 }
 
 
+release_version_is_greater_than_tag() {
+    local candidate_version="${1:-}" latest_tag="${2:-}" version_regex="" tag_regex=""
+    local candidate_major=0 candidate_minor=0 candidate_patch=0
+    local latest_major=0 latest_minor=0 latest_patch=0 latest_suffix=""
+
+    version_regex="$(release_version_regex)"
+    [[ "${candidate_version}" =~ ${version_regex} ]] || {
+        printf "release_version_is_greater_than_tag: invalid version '%s'\n" "${candidate_version}" >&2
+        return 1
+    }
+    candidate_major="${BASH_REMATCH[1]}"
+    candidate_minor="${BASH_REMATCH[2]}"
+    candidate_patch="${BASH_REMATCH[3]}"
+
+    [[ -z "${latest_tag}" ]] && return 0
+
+    tag_regex="$(release_tag_regex)"
+    [[ "${latest_tag}" =~ ${tag_regex} ]] || {
+        printf "release_version_is_greater_than_tag: invalid latest tag '%s'\n" "${latest_tag}" >&2
+        return 1
+    }
+    latest_major="${BASH_REMATCH[1]}"
+    latest_minor="${BASH_REMATCH[2]}"
+    latest_patch="${BASH_REMATCH[3]}"
+    latest_suffix="${BASH_REMATCH[4]:-}"
+
+    if (( 10#${candidate_major} > 10#${latest_major} )); then
+        return 0
+    fi
+    if (( 10#${candidate_major} < 10#${latest_major} )); then
+        return 1
+    fi
+    if (( 10#${candidate_minor} > 10#${latest_minor} )); then
+        return 0
+    fi
+    if (( 10#${candidate_minor} < 10#${latest_minor} )); then
+        return 1
+    fi
+    if (( 10#${candidate_patch} > 10#${latest_patch} )); then
+        return 0
+    fi
+    if (( 10#${candidate_patch} < 10#${latest_patch} )); then
+        return 1
+    fi
+    [[ "${latest_suffix}" == "-beta" ]]
+}
+
+
 release_create_tag() {
     local current_tag="" latest_tag="" subject="" bump_kind="" next_tag=""
 
@@ -121,6 +174,29 @@ release_create_tag() {
     bump_kind="$(release_bump_kind_for_subject "${subject}")"
     next_tag="$(release_next_tag "${latest_tag}" "${bump_kind}")"
 
+    git tag "${next_tag}" HEAD
+    printf '%s\n' "${next_tag}"
+}
+
+
+release_create_tag_as() {
+    local release_as="${1:-}" latest_tag="" next_tag=""
+    local version_regex=""
+
+    version_regex="$(release_version_regex)"
+    [[ "${release_as}" =~ ${version_regex} ]] || {
+        printf "release_create_tag_as: invalid release version '%s' (expected X.Y.Z)\n" "${release_as}" >&2
+        return 1
+    }
+
+    latest_tag="$(release_latest_tag || true)"
+    if ! release_version_is_greater_than_tag "${release_as}" "${latest_tag}"; then
+        printf "release_create_tag_as: '%s' must be greater than latest release tag '%s'\n" \
+            "${release_as}" "${latest_tag:-none}" >&2
+        return 1
+    fi
+
+    next_tag="v${release_as}"
     git tag "${next_tag}" HEAD
     printf '%s\n' "${next_tag}"
 }
