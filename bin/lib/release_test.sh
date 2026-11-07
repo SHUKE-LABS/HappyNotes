@@ -42,4 +42,33 @@ fi
 after_tags="$(git -C "${workdir}" tag --list)"
 [[ "${before_tags}" == "${after_tags}" ]]
 
+changelog_fixture="${workdir}/CHANGELOG.md"
+printf '%s\n' \
+    '# Changelog' \
+    '## v2.1.1 … v2.0.1 (2026-11-07)' \
+    'new feature' \
+    '## v0.6.0 … v0.5.0 (2026-11-07)' \
+    'between releases' \
+    '## v0.4.1 (2026-11-06)' \
+    'previous release' \
+    '## v0.4.0 (2026-08-22)' \
+    'older release' > "${changelog_fixture}"
+
+legacy_releases=$'1.1.4\n1.1.3\nv2.1'
+previous_mobile_tag="$(release_previous_github_tag v2.1.1 "${legacy_releases}")"
+[[ -z "${previous_mobile_tag}" ]]
+legacy_body="$(release_mobile_release_body "${changelog_fixture}" v2.1.1 "${previous_mobile_tag}")"
+[[ "${legacy_body}" == *'between releases'* ]]
+[[ "${legacy_body}" == *'older release'* ]]
+
+mobile_releases=$'1.1.4\nv2.1.1\nv0.4.1\nv0.2.0'
+previous_mobile_tag="$(release_previous_github_tag v2.1.1 "${mobile_releases}")"
+[[ "${previous_mobile_tag}" == 'v0.4.1' ]]
+mobile_body="$(release_mobile_release_body "${changelog_fixture}" v2.1.1 "${previous_mobile_tag}" 'Operator note')"
+[[ "${mobile_body}" == *'new feature'* ]]
+[[ "${mobile_body}" == *'between releases'* ]]
+[[ "${mobile_body}" != *'previous release'* ]]
+[[ "${mobile_body}" != *'older release'* ]]
+[[ "${mobile_body}" == *'Operator note'* ]]
+
 printf 'release helper tests passed\n'

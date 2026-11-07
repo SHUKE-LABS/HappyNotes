@@ -160,6 +160,93 @@ release_version_is_greater_than_tag() {
 }
 
 
+release_previous_github_tag() {
+    local current_tag="${1:-}" release_tags="${2:-}" candidate="" previous_tag=""
+    local tag_regex=""
+
+    tag_regex='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+    [[ "${current_tag}" =~ ${tag_regex} ]] || {
+        printf "release_previous_github_tag: invalid current tag '%s'\n" "${current_tag}" >&2
+        return 1
+    }
+
+    while IFS= read -r candidate; do
+        [[ "${candidate}" =~ ${tag_regex} ]] || continue
+        [[ "${candidate}" == "${current_tag}" ]] && continue
+        release_version_is_greater_than_tag "${current_tag#v}" "${candidate}" || continue
+
+        if [[ -z "${previous_tag}" ]] || release_version_is_greater_than_tag "${candidate#v}" "${previous_tag}"; then
+            previous_tag="${candidate}"
+        fi
+    done <<< "${release_tags}"
+
+    printf '%s\n' "${previous_tag}"
+}
+
+
+release_mobile_changelog_sections() {
+    local changelog_path="${1:?changelog path required}" current_tag="${2:?current tag required}"
+    local previous_tag="${3:-}" current_version="" previous_version=""
+    current_version="${current_tag#v}"
+    previous_version="${previous_tag#v}"
+
+    awk \
+        -v current_version="${current_version}" \
+        -v previous_version="${previous_version}" \
+        '
+          function version_compare(left, right, left_parts, right_parts, i) {
+            split(left, left_parts, ".")
+            split(right, right_parts, ".")
+            for (i = 1; i <= 3; i++) {
+              if ((left_parts[i] + 0) < (right_parts[i] + 0)) return -1
+              if ((left_parts[i] + 0) > (right_parts[i] + 0)) return 1
+            }
+            return 0
+          }
+
+          function section_version(line, wanted, value, parts, count) {
+            value = line
+            sub(/^##[[:space:]]+/, "", value)
+            sub(/[[:space:]]+\([^)]*\)[[:space:]]*$/, "", value)
+            gsub(/[^0-9.]/, " ", value)
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            count = split(value, parts, /[[:space:]]+/)
+            if (wanted == "oldest") return parts[count]
+            return parts[1]
+          }
+
+          /^## v[0-9]+\.[0-9]+\.[0-9]+/ {
+            newest_version = section_version($0, "newest")
+            oldest_version = section_version($0, "oldest")
+            if (!started) {
+              if (version_compare(oldest_version, current_version) > 0) next
+              if (previous_version != "" && version_compare(newest_version, previous_version) <= 0) next
+              started = 1
+            } else if (previous_version != "" &&
+                (version_compare(oldest_version, previous_version) <= 0 &&
+                 version_compare(newest_version, previous_version) >= 0 ||
+                 version_compare(newest_version, previous_version) < 0)) {
+              exit
+            }
+          }
+
+          started { print }
+        ' "${changelog_path}"
+}
+
+
+release_mobile_release_body() {
+    local changelog_path="${1:?changelog path required}" current_tag="${2:?current tag required}"
+    local previous_tag="${3:-}" release_notes="${4:-}"
+
+    release_mobile_changelog_sections "${changelog_path}" "${current_tag}" "${previous_tag}"
+    if [[ -n "${release_notes}" ]]; then
+        printf '\n%s\n' "${release_notes}"
+    fi
+}
+
+
 release_create_tag() {
     local current_tag="" latest_tag="" subject="" bump_kind="" next_tag=""
 
