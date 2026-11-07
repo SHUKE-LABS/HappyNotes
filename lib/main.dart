@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:happy_notes/services/seq_logger.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -18,12 +19,15 @@ import 'package:happy_notes/screens/main_menu.dart';
 import 'package:happy_notes/screens/navigation/bottom_navigation.dart';
 import 'package:happy_notes/screens/new_note/new_note.dart';
 import 'package:happy_notes/services/note_update_coordinator.dart';
+import 'package:happy_notes/services/client_version_update_service.dart';
+import 'package:happy_notes/widgets/client_version_update_dialog.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
 
 import 'app_config.dart';
+import 'utils/client_platform.dart';
 import 'utils/public_note_route.dart';
 
 void main() async {
@@ -109,7 +113,16 @@ void main() async {
 }
 
 class HappyNotesApp extends StatefulWidget {
-  const HappyNotesApp({super.key});
+  final ClientVersionUpdateService? clientVersionUpdateService;
+  final String? clientPlatformOverride;
+  final Widget? home;
+
+  const HappyNotesApp({
+    super.key,
+    this.clientVersionUpdateService,
+    this.clientPlatformOverride,
+    this.home,
+  });
 
   @override
   State<HappyNotesApp> createState() => HappyNotesState();
@@ -124,6 +137,43 @@ class HappyNotesState extends State<HappyNotesApp> {
   void initState() {
     super.initState();
     initializeQuickActions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_checkForClientUpdate());
+    });
+  }
+
+  Future<void> _checkForClientUpdate() async {
+    if (!mounted || !_isMobileClient) return;
+
+    final configuredService = widget.clientVersionUpdateService;
+    if (configuredService == null &&
+        !di.locator.isRegistered<ClientVersionUpdateService>()) {
+      return;
+    }
+
+    final service =
+        configuredService ?? di.locator<ClientVersionUpdateService>();
+    final prompt = await service.checkForUpdate();
+    if (!mounted || prompt == null) return;
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    await showDialog<void>(
+      context: navigator.context,
+      barrierDismissible: !prompt.isForced,
+      builder: (_) => ClientVersionUpdateDialog(prompt: prompt),
+    );
+
+    if (!prompt.isForced && mounted) {
+      await service.dismissSoftUpdate(prompt);
+    }
+  }
+
+  bool get _isMobileClient {
+    final override = widget.clientPlatformOverride;
+    if (override != null) return isMobileClientPlatform(override);
+    return !kIsWeb && (Platform.isAndroid || Platform.isIOS);
   }
 
   void initializeQuickActions() {
@@ -188,7 +238,7 @@ class HappyNotesState extends State<HappyNotesApp> {
         useMaterial3: true,
       ),
       // Show main menu if already logged in, otherwise show login page
-      home: const InitialPage(),
+      home: widget.home ?? const InitialPage(),
       onGenerateRoute: generatePublicNoteRoute,
       navigatorObservers: [UserSession.routeObserver],
     );

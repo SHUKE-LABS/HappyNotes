@@ -36,6 +36,13 @@ Only tags shipped to the stores receive a GitHub Release. The Releases page is t
 
 Follow the API compatibility rule in [HappyNotes.Api#66](https://github.com/SHUKE-LABS/HappyNotes.Api/issues/66) before shipping a mobile version.
 
+After the API version-policy endpoint from HappyNotes.Api#66 is deployed to production, update its `ClientVersionPolicy` values for the platform being released:
+
+- Set `LatestVersion` and `LatestBuild` to the version/build that has reached the store.
+- Raise `MinSupportedBuild` only after the replacement build is available in the store and the old build can be retired.
+- Set the platform's `StoreUrl` to its App Store or Google Play listing.
+- Smoke-test `GET /ClientVersionPolicy/Get?platform=ios` and `platform=android` in production before shipping the client. The response must be HTTP 200 and include all four policy fields.
+
 ## Store-launch baseline
 
 After this foundation lands, run the Version workflow manually with `release_as=2.0.0` on the merged `master` commit. This creates the store-launch baseline above both the legacy `1.1.4` release and the existing `v0.x` tags.

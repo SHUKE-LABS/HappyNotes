@@ -1,4 +1,5 @@
 import 'package:happy_notes/apis/account_api.dart';
+import 'package:happy_notes/apis/client_version_policy_api.dart';
 import 'package:happy_notes/apis/ember_user_account_api.dart';
 import 'package:happy_notes/apis/file_uploader_api.dart';
 import 'package:happy_notes/apis/user_settings_api.dart';
@@ -10,6 +11,7 @@ import 'package:happy_notes/screens/settings/telegram_sync_settings_controller.d
 import 'package:happy_notes/screens/settings/settings_controller.dart';
 import 'package:happy_notes/screens/components/controllers/tag_cloud_controller.dart';
 import 'package:happy_notes/services/account_service.dart';
+import 'package:happy_notes/services/client_version_update_service.dart';
 import 'package:happy_notes/services/clipboard_service.dart';
 import 'package:happy_notes/services/google_auth_service.dart';
 import 'package:happy_notes/services/image_service.dart';
@@ -48,6 +50,7 @@ void _registerApis() {
   locator.registerLazySingleton(() => NoteTagApi());
   locator.registerLazySingleton(() => FileUploaderApi());
   locator.registerLazySingleton(() => AccountApi());
+  locator.registerLazySingleton(() => ClientVersionPolicyApi());
   locator.registerLazySingleton(() => UserSettingsApi());
   locator.registerLazySingleton(() => EmberUserAccountApi());
   locator.registerLazySingleton(() => TelegramSettingsApi());
@@ -69,6 +72,9 @@ void _registerServices() {
         userSettingsService: locator(),
         tokenUtils: locator(),
       ));
+  locator.registerLazySingleton(
+    () => ClientVersionUpdateService(policyApi: locator()),
+  );
   locator.registerLazySingleton(() => UserSettingsService(userSettingsApi: locator()));
   locator.registerLazySingleton(() => EmberUserAccountService(emberUserAccountApi: locator()));
   locator.registerLazySingleton(() => TelegramSettingsService(telegramSettingsApi: locator()));
