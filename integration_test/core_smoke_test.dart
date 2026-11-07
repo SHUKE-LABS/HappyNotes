@@ -112,6 +112,7 @@ String _requiredEnvironment(String key) {
 
 Future<void> _openSearchTab(WidgetTester tester) async {
   final searchNavigation = find.byIcon(Icons.search);
+  await _pumpUntilFound(tester, searchNavigation);
   expect(searchNavigation, findsOneWidget);
   await tester.tap(searchNavigation);
   await _pumpUntilFound(tester, find.byKey(_searchEntryKey));
