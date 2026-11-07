@@ -160,6 +160,102 @@ release_version_is_greater_than_tag() {
 }
 
 
+release_previous_github_tag() {
+    local current_tag="${1:-}" release_tags="${2:-}" candidate="" previous_tag=""
+    local tag_regex=""
+
+    tag_regex='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+    [[ "${current_tag}" =~ ${tag_regex} ]] || {
+        printf "release_previous_github_tag: invalid current tag '%s'\n" "${current_tag}" >&2
+        return 1
+    }
+
+    while IFS= read -r candidate; do
+        [[ "${candidate}" =~ ${tag_regex} ]] || continue
+        [[ "${candidate}" == "${current_tag}" ]] && continue
+        release_version_is_greater_than_tag "${current_tag#v}" "${candidate}" || continue
+
+        if [[ -z "${previous_tag}" ]] || release_version_is_greater_than_tag "${candidate#v}" "${previous_tag}"; then
+            previous_tag="${candidate}"
+        fi
+    done <<< "${release_tags}"
+
+    printf '%s\n' "${previous_tag}"
+}
+
+
+release_mobile_changelog_sections() {
+    local current_tag="${1:?current tag required}" previous_tag="${2:-}"
+    local tag="" oldest_tag="" oldest_range=""
+    local tag_regex='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+
+    if [[ -n "${previous_tag}" ]]; then
+        release_mobile_changelog_range "${previous_tag}" "${current_tag}"
+        return
+    fi
+
+    while IFS= read -r tag; do
+        [[ "${tag}" =~ ${tag_regex} ]] || continue
+        oldest_tag="${tag}"
+        break
+    done < <(git tag --list 'v*' --sort=version:refname)
+
+    [[ -n "${oldest_tag}" ]] || {
+        printf "release_mobile_changelog_sections: no v* tags found for '%s'\n" "${current_tag}" >&2
+        return 1
+    }
+
+    oldest_range="${oldest_tag}"
+    if git rev-parse --verify "${oldest_tag}^{commit}^" >/dev/null 2>&1; then
+        oldest_range="${oldest_tag}^"
+    fi
+    release_mobile_changelog_range "${oldest_range}" "${current_tag}"
+}
+
+
+release_mobile_changelog_range() {
+    local previous_tag="${1:?previous tag required}" current_tag="${2:?current tag required}"
+    local release_date="" subject=""
+    local -a features=() fixes=() refactors=() performance=() docs=() other_changes=()
+
+    # Render the same sections as CHANGELOG.md from an exact tag range so a
+    # grouped heading cannot leak commits outside either release boundary.
+    release_date="$(git log -1 --format=%cs "${current_tag}^{commit}")"
+    while IFS= read -r subject; do
+        [[ -n "${subject}" ]] || continue
+        [[ "${subject}" == *"[skip ci]"* ]] && continue
+        case "$(release_changelog_bucket_for_subject "${subject}")" in
+            Features)     features+=("${subject}") ;;
+            Fixes)        fixes+=("${subject}") ;;
+            Refactors)    refactors+=("${subject}") ;;
+            Performance)  performance+=("${subject}") ;;
+            Docs)         docs+=("${subject}") ;;
+            *)            other_changes+=("${subject}") ;;
+        esac
+    done < <(git log --reverse --format=%s "${previous_tag}..${current_tag}")
+
+    (( ${#features[@]} + ${#fixes[@]} + ${#refactors[@]} + ${#performance[@]} + ${#docs[@]} + ${#other_changes[@]} > 0 )) || return 0
+
+    printf '## %s (%s)\n\n' "${current_tag}" "${release_date}"
+    release_render_changelog_section "Features" "${features[@]}"
+    release_render_changelog_section "Fixes" "${fixes[@]}"
+    release_render_changelog_section "Refactors" "${refactors[@]}"
+    release_render_changelog_section "Performance" "${performance[@]}"
+    release_render_changelog_section "Docs" "${docs[@]}"
+    release_render_changelog_section "Other Changes" "${other_changes[@]}"
+}
+
+
+release_mobile_release_body() {
+    local current_tag="${1:?current tag required}" previous_tag="${2:-}" release_notes="${3:-}"
+
+    release_mobile_changelog_sections "${current_tag}" "${previous_tag}"
+    if [[ -n "${release_notes}" ]]; then
+        printf '\n%s\n' "${release_notes}"
+    fi
+}
+
+
 release_create_tag() {
     local current_tag="" latest_tag="" subject="" bump_kind="" next_tag=""
 

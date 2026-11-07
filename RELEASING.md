@@ -10,17 +10,19 @@ Every generated release tag uses the form `vX.Y.Z`.
 
 ## Mobile build numbers
 
-The mobile release workflow uses `N = github.run_number + 100` as the build number. One workflow run builds both Android and iOS, so both platforms share the same `N`.
+The Android sideload workflow uses `N = github.run_number + 100` as the build number. The tag supplies the Android `versionName`; `N` is the APK `versionCode`.
 
 Do not rename the mobile release workflow: renaming it resets `github.run_number`. If it must be renamed, raise the offset above the last shipped build number before shipping another build.
 
 ## Channels and cadence
 
-Web remains continuous as described in [#47](https://github.com/SHUKE-LABS/HappyNotes/issues/47). Mobile releases use a chosen existing version tag:
+Web remains continuous as described in [#47](https://github.com/SHUKE-LABS/HappyNotes/issues/47). Android sideload releases use a chosen existing version tag:
 
-1. Build TestFlight and Google Play internal releases.
-2. Author-test the dogfood builds.
-3. Promote to production with an App Store phased release and a Google Play staged rollout.
+1. Dispatch `.github/workflows/mobile_release.yml` with the existing `vX.Y.Z` tag.
+2. Author-test the signed APK from the GitHub Release.
+3. Re-dispatch the same tag when a rebuilt APK or updated release notes are needed; the existing Release is updated in place.
+
+The Play Store slice in [#59](https://github.com/SHUKE-LABS/HappyNotes/issues/59) remains parked until a Play developer account exists. This workflow does not upload an AAB or an iOS build.
 
 Target a cadence of at most once every two weeks, or sooner when enough user-visible changes have accumulated.
 
@@ -30,7 +32,7 @@ Hotfixes are trunk-only: fix the issue on `master`, let the Version workflow cre
 
 ## GitHub Releases
 
-Only tags shipped to the stores receive a GitHub Release. The Releases page is therefore the store release history. Attach APK assets to the GitHub Release; release assets are not billed like Actions artifacts.
+Each Android sideload dispatch creates or updates the GitHub Release for its tag and attaches the signed APK; release assets are not billed like Actions artifacts. The release body contains the `CHANGELOG.md` sections since the previous `v*` GitHub Release, plus any dispatch notes.
 
 ## API compatibility
 

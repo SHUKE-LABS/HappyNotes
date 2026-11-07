@@ -1,0 +1,131 @@
+name: Android Sideload Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vX.Y.Z tag to build
+        required: true
+        type: string
+      release_notes:
+        description: Optional plain-text notes to append to the GitHub Release
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tag must match vX.Y.Z: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+
+          if ! gh api --silent "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "tag does not exist: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Fetch default branch release helper
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          # The requested tag may predate the release-body helper. Fetch the
+          # current default branch for rendering; the app still builds at tag.
+          git fetch --no-tags origin "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: oracle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.38.x
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Prepare production environment
+        env:
+          SEQ_API_KEY: ${{ secrets.SEQ_API_KEY }}
+        run: |
+          cp .env.production .env
+
+          escape_sed_replacement() {
+            printf '%s' "$1" | sed 's/[&|\\]/\\&/g'
+          }
+
+          version_info="$(git rev-parse --short HEAD) ($(date '+%Y-%b-%d'))"
+          version_info="$(escape_sed_replacement "${version_info}")"
+          seq_api_key="$(escape_sed_replacement "${SEQ_API_KEY}")"
+          sed -i "s|VERSION_PLACEHOLDER|${version_info}|g" .env
+          sed -i "s|SEQ_API_KEY_PLACEHOLDER|${seq_api_key}|g" .env
+
+      - name: Prepare release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > android/key.jks
+          {
+            printf '%s\n' 'storeFile=../key.jks'
+            printf 'storePassword=%s\n' "${KEYSTORE_PASSWORD}"
+            printf 'keyAlias=%s\n' "${KEY_ALIAS}"
+            printf 'keyPassword=%s\n' "${KEYSTORE_PASSWORD}"
+          } > android/key.properties
+
+      - name: Build release APK
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          build_number=$(( ${{ github.run_number }} + 100 ))
+          flutter build apk --release \
+            --build-name="${RELEASE_TAG#v}" \
+            --build-number="${build_number}"
+
+      - name: Prepare GitHub Release body
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          # shellcheck source=/dev/null
+          source <(git show "origin/${DEFAULT_BRANCH}:bin/lib/release.sh")
+          release_tags="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --json tagName --jq '.[].tagName')"
+          previous_release_tag="$(release_previous_github_tag "${RELEASE_TAG}" "${release_tags}")"
+
+          release_mobile_release_body \
+            "${RELEASE_TAG}" \
+            "${previous_release_tag}" \
+            "${RELEASE_NOTES}" > release-body.md
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-body.md
+          fail_on_unmatched_files: true
+          files: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: ${{ inputs.tag }}
+          token: ${{ github.token }}

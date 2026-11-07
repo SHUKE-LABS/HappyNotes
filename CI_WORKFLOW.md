@@ -13,7 +13,7 @@ The CI workflow runs automatically on:
 - **Pull requests** to `main`, `master`, or `develop` branches
 - **Manual dispatch** (can be triggered manually from GitHub Actions tab)
 
-> **Keep in sync**: this document mirrors `.github/workflows/ci.yml` and `android_release.yml`. Any `flutter-version` or `java-version` bump in the workflow must update this doc in the same commit.
+> **Keep in sync**: this document mirrors `.github/workflows/ci.yml` and `mobile_release.yml`. Any `flutter-version` or `java-version` bump in either workflow must update this doc in the same commit.
 
 ## Workflow Jobs
 
@@ -42,7 +42,23 @@ Verifies that the application builds correctly for Android:
 - ✅ Build Android App Bundle (debug)
 - ✅ Runs only after tests pass successfully
 
-### 3. Integration Test Job (`integration-test`)
+### 3. Android Sideload Release (`mobile_release.yml`)
+This workflow is manual and builds the signed Android APK for an existing release tag. It does not run tests or upload to an app store.
+
+**Inputs:**
+- `tag` (required): an existing tag matching `vX.Y.Z`.
+- `release_notes` (optional): plain-text notes appended to the GitHub Release body.
+
+**Steps:**
+- ✅ Validate the tag before checkout or Flutter setup
+- ✅ Check out the requested tag and prepare the production environment
+- ✅ Decode the existing release keystore without printing signing properties
+- ✅ Build an APK with `versionName` from the tag and `versionCode` equal to `github.run_number + 100`
+- ✅ Create or update the tag's GitHub Release with the APK and the relevant `CHANGELOG.md` sections
+
+Re-dispatching the same tag updates its existing GitHub Release and does not create a second release. Keep the filename `.github/workflows/mobile_release.yml`: its run number is part of the mobile build-number policy in `RELEASING.md`.
+
+### 4. Integration Test Job (`integration-test`)
 Runs integration tests (if present):
 
 **Conditions:**
@@ -50,7 +66,7 @@ Runs integration tests (if present):
 - Checks for `integration_test` directory and runs tests if found
 - Skips gracefully if no integration tests exist
 
-### 4. Summary Job (`summary`)
+### 5. Summary Job (`summary`)
 Provides a consolidated summary of all test results:
 
 **Features:**

@@ -42,4 +42,27 @@ fi
 after_tags="$(git -C "${workdir}" tag --list)"
 [[ "${before_tags}" == "${after_tags}" ]]
 
+commit 'test: add Linux desktop e2e smoke suite (#69)'
+git -C "${workdir}" tag v2.0.1
+commit 'feat: add client version identity and update prompts (#71)'
+commit 'fix(web): redirect legacy note links (#72)'
+git -C "${workdir}" tag v2.1.1
+
+legacy_releases=$'1.1.4\n1.1.3\nv2.1'
+previous_mobile_tag="$(release_previous_github_tag v2.0.1 "${legacy_releases}")"
+[[ -z "${previous_mobile_tag}" ]]
+legacy_body="$(cd "${workdir}" && release_mobile_release_body v2.0.1 "${previous_mobile_tag}")"
+[[ "${legacy_body}" == *'#69'* ]]
+[[ "${legacy_body}" != *'#71'* ]]
+[[ "${legacy_body}" != *'#72'* ]]
+
+mobile_releases=$'1.1.4\nv2.1.1\nv2.0.1'
+previous_mobile_tag="$(release_previous_github_tag v2.1.1 "${mobile_releases}")"
+[[ "${previous_mobile_tag}" == 'v2.0.1' ]]
+mobile_body="$(cd "${workdir}" && release_mobile_release_body v2.1.1 "${previous_mobile_tag}" 'Operator note')"
+[[ "${mobile_body}" == *'#71'* ]]
+[[ "${mobile_body}" == *'#72'* ]]
+[[ "${mobile_body}" != *'#69'* ]]
+[[ "${mobile_body}" == *'Operator note'* ]]
+
 printf 'release helper tests passed\n'
