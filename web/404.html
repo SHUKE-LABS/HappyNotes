@@ -6,7 +6,14 @@
   <title>Page not found - Happy Notes</title>
   <script>
     (function () {
-      const match = window.location.pathname.match(/^\/note\/([0-9]+)$/);
+      let pathname;
+      try {
+        pathname = decodeURIComponent(window.location.pathname);
+      } catch (_) {
+        return;
+      }
+
+      const match = pathname.match(/^\/(?:#\/)?note\/([0-9]+)$/);
       if (match) {
         window.location.replace('/#/note/' + match[1]);
       }
