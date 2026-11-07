@@ -42,13 +42,12 @@ jobs:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
 
-      - name: Fetch default branch changelog
+      - name: Fetch default branch release helper
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          # Version writes CHANGELOG.md after creating the tag, so the default
-          # branch contains the requested tag's section while the tag checkout
-          # remains the build source.
+          # The requested tag may predate the release-body helper. Fetch the
+          # current default branch for rendering; the app still builds at tag.
           git fetch --no-tags origin "refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
 
       - name: Set up Java
@@ -117,13 +116,7 @@ jobs:
           release_tags="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --json tagName --jq '.[].tagName')"
           previous_release_tag="$(release_previous_github_tag "${RELEASE_TAG}" "${release_tags}")"
 
-          changelog_source="$(mktemp)"
-          if ! git show "origin/${DEFAULT_BRANCH}:CHANGELOG.md" > "${changelog_source}"; then
-            git show "${RELEASE_TAG}:CHANGELOG.md" > "${changelog_source}"
-          fi
-
           release_mobile_release_body \
-            "${changelog_source}" \
             "${RELEASE_TAG}" \
             "${previous_release_tag}" \
             "${RELEASE_NOTES}" > release-body.md
