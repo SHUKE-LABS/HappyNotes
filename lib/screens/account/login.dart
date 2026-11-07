@@ -21,6 +21,7 @@ class _LoginState extends State<Login> {
   void initState() {
     super.initState();
     _formModel.onSubmittingStateChanged = (isSubmitting) {
+      if (!mounted) return;
       setState(() {
         _isSubmitting = isSubmitting;
       });
@@ -29,6 +30,7 @@ class _LoginState extends State<Login> {
 
   @override
   void dispose() {
+    _formModel.onSubmittingStateChanged = null;
     _formModel.dispose();
     super.dispose();
   }
