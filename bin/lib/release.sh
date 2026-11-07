@@ -190,6 +190,11 @@ release_mobile_changelog_sections() {
     current_version="${current_tag#v}"
     previous_version="${previous_tag#v}"
 
+    if [[ -n "${previous_tag}" ]]; then
+        release_mobile_changelog_range "${previous_tag}" "${current_tag}"
+        return
+    fi
+
     awk \
         -v current_version="${current_version}" \
         -v previous_version="${previous_version}" \
@@ -233,6 +238,37 @@ release_mobile_changelog_sections() {
 
           started { print }
         ' "${changelog_path}"
+}
+
+
+release_mobile_changelog_range() {
+    local previous_tag="${1:?previous tag required}" current_tag="${2:?current tag required}"
+    local release_date="" subject=""
+    local -a features=() fixes=() refactors=() performance=() docs=() other_changes=()
+
+    release_date="$(git log -1 --format=%cs "${current_tag}^{commit}")"
+    while IFS= read -r subject; do
+        [[ -n "${subject}" ]] || continue
+        [[ "${subject}" == *"[skip ci]"* ]] && continue
+        case "$(release_changelog_bucket_for_subject "${subject}")" in
+            Features)     features+=("${subject}") ;;
+            Fixes)        fixes+=("${subject}") ;;
+            Refactors)    refactors+=("${subject}") ;;
+            Performance)  performance+=("${subject}") ;;
+            Docs)         docs+=("${subject}") ;;
+            *)            other_changes+=("${subject}") ;;
+        esac
+    done < <(git log --reverse --format=%s "${previous_tag}..${current_tag}")
+
+    (( ${#features[@]} + ${#fixes[@]} + ${#refactors[@]} + ${#performance[@]} + ${#docs[@]} + ${#other_changes[@]} > 0 )) || return 0
+
+    printf '## %s (%s)\n\n' "${current_tag}" "${release_date}"
+    release_render_changelog_section "Features" "${features[@]}"
+    release_render_changelog_section "Fixes" "${fixes[@]}"
+    release_render_changelog_section "Refactors" "${refactors[@]}"
+    release_render_changelog_section "Performance" "${performance[@]}"
+    release_render_changelog_section "Docs" "${docs[@]}"
+    release_render_changelog_section "Other Changes" "${other_changes[@]}"
 }
 
 

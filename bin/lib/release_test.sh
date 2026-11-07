@@ -61,14 +61,19 @@ legacy_body="$(release_mobile_release_body "${changelog_fixture}" v2.1.1 "${prev
 [[ "${legacy_body}" == *'between releases'* ]]
 [[ "${legacy_body}" == *'older release'* ]]
 
-mobile_releases=$'1.1.4\nv2.1.1\nv0.4.1\nv0.2.0'
+commit 'test: add Linux desktop e2e smoke suite (#69)'
+git -C "${workdir}" tag v2.0.1
+commit 'feat: add client version identity and update prompts (#71)'
+commit 'fix(web): redirect legacy note links (#72)'
+git -C "${workdir}" tag v2.1.1
+
+mobile_releases=$'1.1.4\nv2.1.1\nv2.0.1'
 previous_mobile_tag="$(release_previous_github_tag v2.1.1 "${mobile_releases}")"
-[[ "${previous_mobile_tag}" == 'v0.4.1' ]]
-mobile_body="$(release_mobile_release_body "${changelog_fixture}" v2.1.1 "${previous_mobile_tag}" 'Operator note')"
-[[ "${mobile_body}" == *'new feature'* ]]
-[[ "${mobile_body}" == *'between releases'* ]]
-[[ "${mobile_body}" != *'previous release'* ]]
-[[ "${mobile_body}" != *'older release'* ]]
+[[ "${previous_mobile_tag}" == 'v2.0.1' ]]
+mobile_body="$(cd "${workdir}" && release_mobile_release_body "${changelog_fixture}" v2.1.1 "${previous_mobile_tag}" 'Operator note')"
+[[ "${mobile_body}" == *'#71'* ]]
+[[ "${mobile_body}" == *'#72'* ]]
+[[ "${mobile_body}" != *'#69'* ]]
 [[ "${mobile_body}" == *'Operator note'* ]]
 
 printf 'release helper tests passed\n'
