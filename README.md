@@ -51,6 +51,8 @@ This means that even if a note is private, the photos in it are public. This eli
 
 Public notes can be shared with the GitHub Pages-safe URL format `https://happynotes.shukebeta.com/#/note/{id}`. The page is read-only and can be opened without signing in; Markdown notes use the Markdown renderer and plain notes are shown as text.
 
+Legacy `/note/{id}` links are handled by the GitHub Pages `404.html` compatibility page: matching paths first return the expected HTTP 404 response, then replace the address with `/#/note/{id}` so the Flutter app can display the note. Only `/note/<decimal-id>` paths redirect; other missing paths remain on the normal not-found page.
+
 Private, soft-deleted, malformed, and nonexistent IDs all show the same not-found state. The public endpoint never exposes private note content or account controls.
 
 ### Supports uploading or pasting images
