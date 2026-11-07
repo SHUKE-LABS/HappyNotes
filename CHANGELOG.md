@@ -2,10 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
-## v2.1.1 … v2.0.1 (2026-11-07)
+## v2.2.0 … v2.0.1 (2026-11-07)
 
 ### Features
 - feat: add client version identity and update prompts (#71)
+- feat: add Android sideload release workflow (#73)
 
 ### Fixes
 - fix(web): redirect legacy note links (#72)
