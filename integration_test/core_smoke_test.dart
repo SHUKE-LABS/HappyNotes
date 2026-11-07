@@ -145,8 +145,17 @@ Future<void> _searchUntilFound(WidgetTester tester, String query) async {
       return;
     }
 
-    await tester.pageBack();
-    await _pumpUntilFound(tester, searchEntry);
+    final searchResultsPage = find.byKey(_searchResultsKey);
+    Navigator.of(tester.element(searchResultsPage)).pop();
+    await _pumpUntil(
+      tester,
+      () =>
+          searchResultsPage.evaluate().isEmpty &&
+          searchEntry.evaluate().isNotEmpty,
+      timeout: const Duration(seconds: 5),
+    );
+    await tester.ensureVisible(searchEntry);
+    await tester.pump();
   }
 
   throw TestFailure(
