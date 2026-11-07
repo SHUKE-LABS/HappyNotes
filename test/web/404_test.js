@@ -29,6 +29,14 @@ function redirectFor(pathname) {
   return target;
 }
 
+for (const pathname of [
+  '/note/35609',
+  '/%23/note/35609',
+  '/%23%2Fnote%2F35609',
+]) {
+  assert.equal(redirectFor(pathname), '/#/note/35609', pathname);
+}
+
 for (const id of ['35600', '0', '0012']) {
   assert.equal(redirectFor(`/note/${id}`), `/#/note/${id}`);
 }
@@ -38,6 +46,8 @@ for (const pathname of [
   '/note/',
   '/note/not-a-number',
   '/note/42/extra',
+  '/%23/note/abc',
+  '/%E0%A4%A/note/1',
   '/other',
 ]) {
   assert.equal(redirectFor(pathname), undefined, pathname);
