@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:happy_notes/services/seq_logger.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -18,6 +19,8 @@ import 'package:happy_notes/screens/main_menu.dart';
 import 'package:happy_notes/screens/navigation/bottom_navigation.dart';
 import 'package:happy_notes/screens/new_note/new_note.dart';
 import 'package:happy_notes/services/note_update_coordinator.dart';
+import 'package:happy_notes/services/client_version_update_service.dart';
+import 'package:happy_notes/widgets/client_version_update_dialog.dart';
 import 'package:quick_actions/quick_actions.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -124,6 +127,31 @@ class HappyNotesState extends State<HappyNotesApp> {
   void initState() {
     super.initState();
     initializeQuickActions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_checkForClientUpdate());
+    });
+  }
+
+  Future<void> _checkForClientUpdate() async {
+    if (!mounted || kIsWeb || !(Platform.isAndroid || Platform.isIOS)) return;
+    if (!di.locator.isRegistered<ClientVersionUpdateService>()) return;
+
+    final prompt =
+        await di.locator<ClientVersionUpdateService>().checkForUpdate();
+    if (!mounted || prompt == null) return;
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    await showDialog<void>(
+      context: navigator.context,
+      barrierDismissible: !prompt.isForced,
+      builder: (_) => ClientVersionUpdateDialog(prompt: prompt),
+    );
+
+    if (!prompt.isForced && mounted) {
+      await di.locator<ClientVersionUpdateService>().dismissSoftUpdate(prompt);
+    }
   }
 
   void initializeQuickActions() {
