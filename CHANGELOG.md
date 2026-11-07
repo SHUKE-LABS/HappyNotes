@@ -2,6 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
+## v2.0.1 (2026-11-07)
+
+### Other Changes
+- test: add Linux desktop e2e smoke suite (#69)
+
 ## v0.6.0 … v0.5.0 (2026-11-07)
 
 ### Features
