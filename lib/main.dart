@@ -100,7 +100,10 @@ void main() async {
           },
         ),
       ],
-      child: const HappyNotesApp(),
+      child: const RepaintBoundary(
+        key: ValueKey<String>('e2e-app-boundary'),
+        child: HappyNotesApp(),
+      ),
     ),
   );
 }

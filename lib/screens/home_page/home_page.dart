@@ -150,6 +150,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ],
       ),
       floatingActionButton: CreateNoteFAB(
+        key: const ValueKey<String>('e2e-new-note-entry'),
         isPrivate: AppConfig.privateNoteOnlyIsEnabled,
         heroTag: 'fab_home',
         onPressed: () async {

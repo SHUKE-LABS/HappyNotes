@@ -99,6 +99,7 @@ class SearchTabState extends State<SearchTab> {
         child: Column(
           children: [
             TextField(
+              key: const ValueKey<String>('e2e-search-entry'),
               controller: _controller,
               focusNode: _focusNode,
               decoration: InputDecoration(
