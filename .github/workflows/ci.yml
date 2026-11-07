@@ -16,6 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Test GitHub Pages 404 redirect
+        run: node test/web/404_test.js
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
