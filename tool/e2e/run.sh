@@ -71,6 +71,8 @@ if [[ -e "$ENV_FILE" || -L "$ENV_FILE" ]]; then
 fi
 
 original_pub_cache="${PUB_CACHE:-${HOME:-}/.pub-cache}"
+original_cargo_home="${CARGO_HOME:-${HOME:-}/.cargo}"
+original_rustup_home="${RUSTUP_HOME:-${HOME:-}/.rustup}"
 RUN_TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/happynotes-e2e-app-XXXXXX")"
 mkdir -p -- "${RUN_TMP_DIR}/home" "${RUN_TMP_DIR}/xdg-data" "${RUN_TMP_DIR}/xdg-config" "${RUN_TMP_DIR}/xdg-cache"
 
@@ -85,6 +87,10 @@ export XDG_DATA_HOME="${RUN_TMP_DIR}/xdg-data"
 export XDG_CONFIG_HOME="${RUN_TMP_DIR}/xdg-config"
 export XDG_CACHE_HOME="${RUN_TMP_DIR}/xdg-cache"
 export PUB_CACHE="$original_pub_cache"
+# Native Flutter assets may invoke Rust. Keep the installed toolchain visible
+# while app data remains isolated under the per-run HOME/XDG directories.
+export CARGO_HOME="$original_cargo_home"
+export RUSTUP_HOME="$original_rustup_home"
 export HAPPYNOTES_E2E_STATE="$STATE_FILE"
 export E2E_SEED_USERNAME="$seed_username"
 export E2E_SEED_PASSWORD="$seed_password"

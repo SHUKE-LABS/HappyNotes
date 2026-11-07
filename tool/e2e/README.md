@@ -44,7 +44,7 @@ tool/e2e/run.sh "$api_state" "$evidence/second"
 test ! -e .env
 ```
 
-The API state must remain running between the two invocations. `run.sh` gives each invocation separate HOME/XDG storage, so SharedPreferences tokens cannot leak between runs. Shut down the API run with `e2e/down.sh` after both invocations.
+The API state must remain running between the two invocations. `run.sh` gives each invocation separate HOME/XDG storage, so SharedPreferences tokens cannot leak between runs. It preserves the caller's `CARGO_HOME` and `RUSTUP_HOME` so native Flutter assets can use the installed Rust toolchain; those directories are toolchain caches rather than app state. Shut down the API run with `e2e/down.sh` after both invocations.
 
 ## CI behavior
 
