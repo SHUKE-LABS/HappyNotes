@@ -52,6 +52,8 @@ HappyNotes允许你上传照片，但照片上传成功即成为 Markdown文本�
 
 公开笔记可使用适合 GitHub Pages 的链接格式分享：`https://happynotes.shukebeta.com/#/note/{id}`。此页面为只读页面，无需登录即可打开；Markdown 笔记使用现有 Markdown 渲染器，普通笔记按文本显示。
 
+旧版的 `/note/{id}` 链接由 GitHub Pages 的 `404.html` 兼容页处理：匹配的路径仍会先返回预期的 HTTP 404，然后将地址替换为 `/#/note/{id}`，交由 Flutter 应用显示笔记。只有 `/note/<十进制ID>` 路径会跳转，其他不存在的路径仍显示普通的未找到页面。
+
 私密、软删除、格式错误及不存在的 ID 均显示相同的“笔记不存在”状态，不会泄露笔记内容，也不提供编辑、删除或账户操作。
 
 ### 支持上传或者粘贴图片

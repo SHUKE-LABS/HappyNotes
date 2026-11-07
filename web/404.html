@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page not found - Happy Notes</title>
+  <script>
+    (function () {
+      const match = window.location.pathname.match(/^\/note\/([0-9]+)$/);
+      if (match) {
+        window.location.replace('/#/note/' + match[1]);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <main>
+    <h1>Page not found</h1>
+    <p>The page you requested does not exist.</p>
+  </main>
+</body>
+</html>

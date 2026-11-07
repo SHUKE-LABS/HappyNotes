@@ -22,6 +22,7 @@ This is the primary job that runs all Flutter unit tests and performs code quali
 
 **Steps:**
 - ✅ Checkout repository
+- ✅ Test GitHub Pages 404 redirect (`node test/web/404_test.js`)
 - ✅ Setup Java 17 (Oracle distribution)
 - ✅ Setup Flutter 3.38.x (stable channel)
 - ✅ Cache Flutter dependencies for faster builds
@@ -117,6 +118,9 @@ To run the same checks locally before pushing:
 ```bash
 # Run all tests with coverage
 flutter test --coverage --reporter expanded
+
+# Test the GitHub Pages legacy-note redirect
+node test/web/404_test.js
 
 # Run code analysis
 flutter analyze --fatal-infos --fatal-warnings
