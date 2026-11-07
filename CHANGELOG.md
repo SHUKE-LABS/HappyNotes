@@ -2,7 +2,10 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
-## v2.0.1 (2026-11-07)
+## v2.1.0 … v2.0.1 (2026-11-07)
+
+### Features
+- feat: add client version identity and update prompts (#71)
 
 ### Other Changes
 - test: add Linux desktop e2e smoke suite (#69)
