@@ -46,6 +46,26 @@ class AccountService {
     return apiResult;
   }
 
+  Future<dynamic> deleteAccount({String? password, String? idToken}) async {
+    final confirmation = <String, dynamic>{};
+    if (password != null && password.isNotEmpty) {
+      confirmation['password'] = password;
+    }
+    if (idToken != null && idToken.isNotEmpty) {
+      confirmation['idToken'] = idToken;
+    }
+
+    if (confirmation.length != 1) {
+      throw ArgumentError('Exactly one account deletion confirmation is required');
+    }
+
+    final apiResult = (await _accountApi.deleteAccount(confirmation)).data;
+    if (apiResult['successful']) {
+      return apiResult;
+    }
+    throw ApiException(apiResult);
+  }
+
   Future<dynamic> register(String username, String email, String password) async {
     var params = {'username': username, 'email': email, 'password': password};
     var apiResult = (await _accountApi.register(params)).data;

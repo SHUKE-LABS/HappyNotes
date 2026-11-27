@@ -83,6 +83,23 @@ class MockAccountService extends _i1.Mock implements _i4.AccountService {
       ) as _i5.Future<dynamic>);
 
   @override
+  _i5.Future<dynamic> deleteAccount({
+    String? password,
+    String? idToken,
+  }) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #deleteAccount,
+          [],
+          {
+            #password: password,
+            #idToken: idToken,
+          },
+        ),
+        returnValue: _i5.Future<dynamic>.value(),
+      ) as _i5.Future<dynamic>);
+
+  @override
   _i5.Future<dynamic> register(
     String? username,
     String? email,

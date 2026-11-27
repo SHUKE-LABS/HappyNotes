@@ -10,6 +10,7 @@ import 'package:happy_notes/screens/settings/fanfou_sync_settings.dart';
 import 'package:happy_notes/screens/settings/settings_controller.dart';
 import 'package:happy_notes/screens/settings/telegram_sync_settings.dart';
 import 'package:happy_notes/screens/settings/profile_page.dart';
+import 'package:happy_notes/screens/settings/delete_account_page.dart';
 import 'package:happy_notes/entities/user.dart';
 import 'package:happy_notes/apis/account_api.dart';
 import 'package:happy_notes/providers/auth_provider.dart';
@@ -260,6 +261,18 @@ class SettingsState extends State<Settings> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const TrashBinPage()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_remove_outlined),
+              title: const Text('Delete account'),
+              subtitle: const Text('Permanently delete your account and notes.'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DeleteAccountPage()),
                 );
               },
             ),

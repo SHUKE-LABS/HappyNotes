@@ -86,6 +86,14 @@ This feature is currently only available on Web, maybe later it will be opened t
   - Enable Markdown support.
   - Set default note visibility (private notes by default).
 
+### Account deletion
+
+Signed-in users can permanently delete their account and notes from **Settings -> Delete account**. For Google accounts, the flow asks for a fresh Google sign-in. Copies already posted to Telegram, Mastodon, Fanfou, or Ember are not removed.
+
+For Google Play's **Delete account URL** field, use:
+
+`https://happynotes.shukebeta.com/delete-account/`
+
 ## Join Our Community
 
 Connect with us on Telegram for support and to share experiences:
