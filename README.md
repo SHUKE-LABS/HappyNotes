@@ -92,7 +92,7 @@ Signed-in users can permanently delete their account and notes from **Settings -
 
 For Google Play's **Delete account URL** field, use:
 
-`https://happynotes.shukebeta.com`
+`https://happynotes.shukebeta.com/delete-account/`
 
 ## Join Our Community
 
