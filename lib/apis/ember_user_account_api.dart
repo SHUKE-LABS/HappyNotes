@@ -41,5 +41,12 @@ class EmberUserAccountApi {
     return _dio.post('/emberUserAccount/test', data: _accountData(accountId));
   }
 
+  Future<Response> nextSyncType(int accountId) {
+    return _dio.post(
+      '/emberUserAccount/nextSyncType',
+      data: _accountData(accountId),
+    );
+  }
+
   Map<String, int> _accountData(int accountId) => {'accountId': accountId};
 }

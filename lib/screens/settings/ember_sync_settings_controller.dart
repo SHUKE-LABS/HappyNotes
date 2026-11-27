@@ -63,6 +63,14 @@ class EmberSyncSettingsController {
     );
   }
 
+  Future<bool> nextSyncType(BuildContext context, int accountId) {
+    return _run(
+      context,
+      'Failed to change Ember sync mode',
+      () => _emberUserAccountService.nextSyncType(accountId),
+    );
+  }
+
   Future<bool> _run(
     BuildContext context,
     String message,

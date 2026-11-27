@@ -88,6 +88,21 @@ class EmberSyncSettingsState extends State<EmberSyncSettings> {
               ),
             ],
             const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text(
+                  'Sync mode: ',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () => _runAction(
+                    () => _settingsController.nextSyncType(context, account.id),
+                  ),
+                  child: Text(account.syncTypeText),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: Wrap(

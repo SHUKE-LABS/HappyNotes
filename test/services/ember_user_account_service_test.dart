@@ -48,6 +48,10 @@ class FakeEmberUserAccountApi extends EmberUserAccountApi {
 
   @override
   Future<Response> test(int accountId) => _idAction('test', accountId);
+
+  @override
+  Future<Response> nextSyncType(int accountId) =>
+      _idAction('nextSyncType', accountId);
 }
 
 void main() {
@@ -98,8 +102,11 @@ void main() {
     await service.test(11);
     expect((api.lastAction, api.lastAccountId), ('test', 11));
 
-    await service.delete(12);
-    expect((api.lastAction, api.lastAccountId), ('delete', 12));
+    await service.nextSyncType(12);
+    expect((api.lastAction, api.lastAccountId), ('nextSyncType', 12));
+
+    await service.delete(13);
+    expect((api.lastAction, api.lastAccountId), ('delete', 13));
   });
 
   test('throws ApiException for unsuccessful responses', () async {

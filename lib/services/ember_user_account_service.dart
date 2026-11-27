@@ -46,6 +46,10 @@ class EmberUserAccountService {
     return _successful(await _emberUserAccountApi.test(accountId));
   }
 
+  Future<bool> nextSyncType(int accountId) async {
+    return _successful(await _emberUserAccountApi.nextSyncType(accountId));
+  }
+
   bool _successful(dynamic response) {
     final apiResult = response.data;
     _ensureSuccessful(apiResult);
