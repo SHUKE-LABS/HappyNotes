@@ -23,6 +23,8 @@ Web remains continuous as described in [#47](https://github.com/SHUKE-LABS/Happy
 3. The workflow creates or updates the tag's GitHub Release with the APK. `release_notes`, when supplied, are used as the Play `en-US` "What's new" text after truncation to 500 characters and are also included in the GitHub Release body.
 4. Author-test the signed APK and the internal-track build before promoting it.
 
+The Play upload commits the internal-track changes without sending them for review automatically. If Play Console shows changes waiting for review, the release owner must send them for review there.
+
 Promotion beyond the internal track remains manual in Play Console, including any staged rollout. The workflow does not promote to production or build an iOS release.
 
 The upload action uses `status: completed`. If the first post-merge dispatch is rejected with Play's `Only releases with status draft may be created on draft app` error, use `status: draft` for that one onboarding dispatch, then restore `completed` before normal releases.

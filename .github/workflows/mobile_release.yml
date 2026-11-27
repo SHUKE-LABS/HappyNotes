@@ -131,7 +131,8 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.shukebeta.happynotes
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: internal
+          tracks: internal
+          changesNotSentForReview: true
           status: completed
           whatsNewDirectory: play-whatsnew
 
@@ -142,7 +143,8 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.shukebeta.happynotes
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: internal
+          tracks: internal
+          changesNotSentForReview: true
           status: completed
 
       - name: Prepare GitHub Release body
