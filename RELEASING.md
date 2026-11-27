@@ -10,19 +10,24 @@ Every generated release tag uses the form `vX.Y.Z`.
 
 ## Mobile build numbers
 
-The Android sideload workflow uses `N = github.run_number + 100` as the build number. The tag supplies the Android `versionName`; `N` is the APK `versionCode`.
+The Android mobile release workflow uses `N = github.run_number + 100` for both the APK and AAB. The tag supplies the Android `versionName`; `N` is each artifact's `versionCode`.
 
 Do not rename the mobile release workflow: renaming it resets `github.run_number`. If it must be renamed, raise the offset above the last shipped build number before shipping another build.
 
 ## Channels and cadence
 
-Web remains continuous as described in [#47](https://github.com/SHUKE-LABS/HappyNotes/issues/47). Android sideload releases use a chosen existing version tag:
+Web remains continuous as described in [#47](https://github.com/SHUKE-LABS/HappyNotes/issues/47). Android releases use a chosen existing version tag:
 
 1. Dispatch `.github/workflows/mobile_release.yml` with the existing `vX.Y.Z` tag.
-2. Author-test the signed APK from the GitHub Release.
-3. Re-dispatch the same tag when a rebuilt APK or updated release notes are needed; the existing Release is updated in place.
+2. The workflow builds the signed APK and matching AAB, then uploads the AAB to the Google Play **internal** track for `com.shukebeta.happynotes`.
+3. The workflow creates or updates the tag's GitHub Release with the APK. `release_notes`, when supplied, are used as the Play `en-US` "What's new" text after truncation to 500 characters and are also included in the GitHub Release body.
+4. Author-test the signed APK and the internal-track build before promoting it.
 
-The Play Store slice in [#59](https://github.com/SHUKE-LABS/HappyNotes/issues/59) remains parked until a Play developer account exists. This workflow does not upload an AAB or an iOS build.
+Promotion beyond the internal track remains manual in Play Console, including any staged rollout. The workflow does not promote to production or build an iOS release.
+
+The upload action uses `status: completed`. If the first post-merge dispatch is rejected with Play's `Only releases with status draft may be created on draft app` error, use `status: draft` for that one onboarding dispatch, then restore `completed` before normal releases.
+
+Do not re-run a workflow run after its AAB has uploaded successfully: a re-run keeps the same `github.run_number`, so Play may reject the duplicate `versionCode`. Dispatch the same tag as a new workflow run instead; it receives a new build number and updates the existing GitHub Release in place. Because Play upload happens before the GitHub Release step, a failed Play upload does not publish an APK-only release.
 
 Target a cadence of at most once every two weeks, or sooner when enough user-visible changes have accumulated.
 
