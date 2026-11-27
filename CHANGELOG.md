@@ -2,10 +2,13 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
-## v2.3.0 (2026-11-27)
+## v2.3.1 … v2.3.0 (2026-11-27)
 
 ### Features
 - feat: add in-app account deletion (#78)
+
+### Fixes
+- fix: restore auth before settings refresh (#79)
 
 ## v2.2.1 … v2.0.1 (2026-11-07)
 
