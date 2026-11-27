@@ -40,4 +40,30 @@ void main() {
     expect(account.status, 'Disabled');
     expect(account.isDisabled, isTrue);
   });
+
+  test('maps sync types to their display labels', () {
+    EmberUserAccount accountWithSyncType(int syncType) => EmberUserAccount(
+          emberUrl: 'https://ember.example',
+          apiKey: '****',
+          syncType: syncType,
+        );
+
+    expect(
+      accountWithSyncType(EmberUserAccount.publicOnlySyncType).syncTypeText,
+      'Public notes',
+    );
+    expect(
+      accountWithSyncType(EmberUserAccount.tagEmberOnlySyncType).syncTypeText,
+      'Notes tagged #ember',
+    );
+    expect(accountWithSyncType(99).syncTypeText, 'Unknown');
+    expect(
+      EmberUserAccount.fromJson({
+        'emberUrl': 'https://ember.example',
+        'apiKey': '****',
+        'syncType': 'TagEmberOnly',
+      }).syncType,
+      EmberUserAccount.tagEmberOnlySyncType,
+    );
+  });
 }

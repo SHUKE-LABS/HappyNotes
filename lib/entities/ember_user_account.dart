@@ -1,5 +1,6 @@
 class EmberUserAccount {
   static const int publicOnlySyncType = 1;
+  static const int tagEmberOnlySyncType = 2;
 
   final int id;
   final int userId;
@@ -24,6 +25,17 @@ class EmberUserAccount {
   bool get isDisabled => status == 'Disabled';
 
   bool get isUntested => status == 'Untested';
+
+  String get syncTypeText {
+    switch (syncType) {
+      case publicOnlySyncType:
+        return 'Public notes';
+      case tagEmberOnlySyncType:
+        return 'Notes tagged #ember';
+      default:
+        return 'Unknown';
+    }
+  }
 
   factory EmberUserAccount.fromJson(Map<String, dynamic> json) {
     return EmberUserAccount(
@@ -56,6 +68,7 @@ class EmberUserAccount {
 
   static int _syncTypeFromJson(dynamic value) {
     if (value == null || value == 'PublicOnly') return publicOnlySyncType;
+    if (value == 'TagEmberOnly') return tagEmberOnlySyncType;
     return _asInt(value);
   }
 }
