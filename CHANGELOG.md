@@ -2,6 +2,11 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
+## v2.3.0 (2026-11-27)
+
+### Features
+- feat: add in-app account deletion (#78)
+
 ## v2.2.1 … v2.0.1 (2026-11-07)
 
 ### Features
