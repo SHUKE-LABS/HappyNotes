@@ -42,21 +42,22 @@ Verifies that the application builds correctly for Android:
 - ✅ Build Android App Bundle (debug)
 - ✅ Runs only after tests pass successfully
 
-### 3. Android Sideload Release (`mobile_release.yml`)
-This workflow is manual and builds the signed Android APK for an existing release tag. It does not run tests or upload to an app store.
+### 3. Android Mobile Release (`mobile_release.yml`)
+This workflow is manual, builds signed Android APK/AAB artifacts for an existing release tag, uploads the AAB to the Google Play internal track, and publishes the APK to GitHub Releases. It does not run tests or promote beyond the internal track.
 
 **Inputs:**
 - `tag` (required): an existing tag matching `vX.Y.Z`.
-- `release_notes` (optional): plain-text notes appended to the GitHub Release body.
+- `release_notes` (optional): plain-text notes appended to the GitHub Release body and used as Play's `en-US` "What's new" text, truncated to 500 characters.
 
 **Steps:**
 - ✅ Validate the tag before checkout or Flutter setup
 - ✅ Check out the requested tag and prepare the production environment
 - ✅ Decode the existing release keystore without printing signing properties
-- ✅ Build an APK with `versionName` from the tag and `versionCode` equal to `github.run_number + 100`
+- ✅ Build an APK and AAB with `versionName` from the tag and `versionCode` equal to `github.run_number + 100`
+- ✅ Upload the AAB to `com.shukebeta.happynotes` on the Play internal track using `PLAY_SERVICE_ACCOUNT_JSON`
 - ✅ Create or update the tag's GitHub Release with the APK and the relevant `CHANGELOG.md` sections
 
-Re-dispatching the same tag updates its existing GitHub Release and does not create a second release. Keep the filename `.github/workflows/mobile_release.yml`: its run number is part of the mobile build-number policy in `RELEASING.md`.
+Dispatch the same tag again, rather than re-running a completed workflow run, when a new Play `versionCode` is needed. A new dispatch updates the existing GitHub Release and does not create a second release. Keep the filename `.github/workflows/mobile_release.yml`: its run number is part of the mobile build-number policy in `RELEASING.md`.
 
 ### 4. Integration Test Job (`integration-test`)
 Runs integration tests (if present):

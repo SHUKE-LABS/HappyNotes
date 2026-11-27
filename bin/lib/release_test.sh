@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C.UTF-8
 
 ROOT="$(cd "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT}/bin/lib/release.sh"
@@ -64,5 +65,19 @@ mobile_body="$(cd "${workdir}" && release_mobile_release_body v2.1.1 "${previous
 [[ "${mobile_body}" == *'#72'* ]]
 [[ "${mobile_body}" != *'#69'* ]]
 [[ "${mobile_body}" == *'Operator note'* ]]
+
+[[ -z "$(release_mobile_play_whats_new '')" ]]
+at_limit_notes="$(printf '%*s' 500 '' | tr ' ' 'n')"
+[[ "$(release_mobile_play_whats_new "${at_limit_notes}")" == "${at_limit_notes}" ]]
+
+over_limit_notes="$(printf '%*s' 501 '' | tr ' ' 'n')"
+over_limit_whats_new="$(release_mobile_play_whats_new "${over_limit_notes}")"
+[[ "${#over_limit_whats_new}" -eq 500 ]]
+[[ "${over_limit_whats_new}" == "${over_limit_notes:0:500}" ]]
+
+multibyte_notes="$(printf '界%.0s' {1..501})"
+multibyte_whats_new="$(release_mobile_play_whats_new "${multibyte_notes}")"
+[[ "${#multibyte_whats_new}" -eq 500 ]]
+[[ "${multibyte_whats_new}" == "$(printf '界%.0s' {1..500})" ]]
 
 printf 'release helper tests passed\n'

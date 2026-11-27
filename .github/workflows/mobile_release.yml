@@ -104,6 +104,47 @@ jobs:
             --build-name="${RELEASE_TAG#v}" \
             --build-number="${build_number}"
 
+      - name: Build release Android App Bundle
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          build_number=$(( ${{ github.run_number }} + 100 ))
+          flutter build appbundle --release \
+            --build-name="${RELEASE_TAG#v}" \
+            --build-number="${build_number}"
+
+      - name: Prepare Play release notes
+        if: ${{ inputs.release_notes != '' }}
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          # shellcheck source=/dev/null
+          source <(git show "origin/${DEFAULT_BRANCH}:bin/lib/release.sh")
+          mkdir -p play-whatsnew
+          release_mobile_play_whats_new "${RELEASE_NOTES}" > play-whatsnew/whatsnew-en-US
+
+      - name: Upload Android App Bundle to Play internal track with notes
+        if: ${{ inputs.release_notes != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.shukebeta.happynotes
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: play-whatsnew
+
+      - name: Upload Android App Bundle to Play internal track
+        if: ${{ inputs.release_notes == '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.shukebeta.happynotes
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
       - name: Prepare GitHub Release body
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}

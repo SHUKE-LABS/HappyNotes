@@ -256,6 +256,14 @@ release_mobile_release_body() {
 }
 
 
+release_mobile_play_whats_new() {
+    local LC_ALL=C.UTF-8
+    local release_notes="${1:-}"
+
+    printf '%s' "${release_notes:0:500}"
+}
+
+
 release_create_tag() {
     local current_tag="" latest_tag="" subject="" bump_kind="" next_tag=""
 
