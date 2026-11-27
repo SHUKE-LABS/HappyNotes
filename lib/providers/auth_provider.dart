@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:happy_notes/services/account_service.dart';
 import 'package:happy_notes/services/google_auth_service.dart';
@@ -27,63 +30,113 @@ class AuthProvider with ChangeNotifier {
   Future<void> initAuth() async {
     if (_isInitialized) return; // Prevent multiple initializations
 
-    SeqLogger.info( 'AuthProvider.initAuth: Starting authentication initialization');
+    String? settingsRefreshToken;
+    SeqLogger.info(
+        'AuthProvider.initAuth: Starting authentication initialization');
     _isLoading = true;
     notifyListeners();
 
     try {
-      SeqLogger.info( 'AuthProvider.initAuth: Getting stored token...');
+      SeqLogger.info('AuthProvider.initAuth: Getting stored token...');
       final storedToken = await _accountService.getToken();
-      SeqLogger.info( 'AuthProvider.initAuth: Stored token exists: ${storedToken != null && storedToken.isNotEmpty}');
+      SeqLogger.info(
+          'AuthProvider.initAuth: Stored token exists: ${storedToken != null && storedToken.isNotEmpty}');
 
       if (storedToken != null && storedToken.isNotEmpty) {
         // Validate token with timeout and fallback
         bool isValid = false;
 
         try {
-          // Add timeout to token validation to prevent hanging
-          SeqLogger.info( 'AuthProvider.initAuth: Starting network token validation...');
-          isValid = await _accountService.isValidToken()
+          // Keep local token validation from hanging indefinitely.
+          SeqLogger.info(
+              'AuthProvider.initAuth: Starting local token validation...');
+          isValid = await _accountService
+              .isValidToken()
               .timeout(const Duration(seconds: 30));
-          SeqLogger.info( 'AuthProvider.initAuth: Network token validation result: $isValid');
+          SeqLogger.info(
+              'AuthProvider.initAuth: Local token validation result: $isValid');
         } catch (e) {
-          SeqLogger.info( 'AuthProvider.initAuth: Network validation failed: $e');
+          SeqLogger.info('AuthProvider.initAuth: Local validation failed: $e');
           rethrow;
         }
 
         if (isValid) {
-          SeqLogger.info( 'AuthProvider.initAuth: Token is valid, setting up session...');
+          SeqLogger.info(
+              'AuthProvider.initAuth: Token is valid, restoring local session...');
           _token = storedToken;
-          try {
-            await _accountService.setUserSession(token: _token)
-                .timeout(const Duration(seconds: 30));
-            SeqLogger.info( 'AuthProvider.initAuth: Session setup completed successfully');
-          } catch (sessionError) {
-            final hasCachedSettings = UserSession().userSettings?.isNotEmpty ?? false;
-            SeqLogger.severe(
-              'AuthProvider.initAuth: Session setup failed. Cached settings available: $hasCachedSettings. Error: $sessionError',
-            );
-            if (!hasCachedSettings) {
-              rethrow;
-            }
-          }
+          await _accountService.restoreUserSession(token: _token);
+          settingsRefreshToken = storedToken;
+          SeqLogger.info(
+              'AuthProvider.initAuth: Local session restored; settings refresh deferred');
         } else {
-          SeqLogger.info( 'AuthProvider.initAuth: Token is invalid, clearing session...');
+          SeqLogger.info(
+              'AuthProvider.initAuth: Token is invalid, clearing session...');
           _token = null; // Token is invalid or expired
           await _accountService.logout(); // Clear any stale session data
         }
       } else {
-        SeqLogger.info( 'AuthProvider.initAuth: No stored token found');
+        SeqLogger.info('AuthProvider.initAuth: No stored token found');
       }
     } catch (e) {
-      SeqLogger.severe( 'AuthProvider.initAuth: Failed to initialize authentication: $e');
+      SeqLogger.severe(
+          'AuthProvider.initAuth: Failed to initialize authentication: $e');
       _error = 'Failed to initialize authentication: ${e.toString()}';
       _token = null;
     } finally {
       _isLoading = false;
       _isInitialized = true;
-      SeqLogger.info( 'AuthProvider.initAuth: Authentication initialization completed. isAuthenticated: ${_token != null}');
+      SeqLogger.info(
+          'AuthProvider.initAuth: Authentication initialization completed. isAuthenticated: ${_token != null}');
       notifyListeners();
+    }
+
+    if (settingsRefreshToken != null && _token == settingsRefreshToken) {
+      unawaited(_refreshSettingsInBackground(settingsRefreshToken));
+    }
+  }
+
+  Future<void> _refreshSettingsInBackground(String token) async {
+    try {
+      final applied = await _accountService.refreshUserSettings(token: token);
+      if (!applied || _token != token) {
+        SeqLogger.info(
+            'AuthProvider: Discarded settings refresh for an outdated session');
+      }
+    } on DioException catch (error, stackTrace) {
+      if (_token != token) {
+        SeqLogger.info(
+            'AuthProvider: Ignored settings refresh error for an outdated session: $error');
+        return;
+      }
+
+      if (error.response?.statusCode == 401) {
+        SeqLogger.info(
+            'AuthProvider: Settings refresh returned 401; signing out');
+        try {
+          await logout();
+        } catch (logoutError, logoutStackTrace) {
+          SeqLogger.severe(
+              'AuthProvider: Failed to sign out after settings refresh 401: $logoutError',
+              logoutError,
+              logoutStackTrace);
+        }
+        return;
+      }
+
+      SeqLogger.warning(
+          'AuthProvider: Background settings refresh failed: $error',
+          error,
+          stackTrace);
+    } catch (error, stackTrace) {
+      if (_token != token) {
+        SeqLogger.info(
+            'AuthProvider: Ignored settings refresh error for an outdated session: $error');
+        return;
+      }
+      SeqLogger.warning(
+          'AuthProvider: Background settings refresh failed: $error',
+          error,
+          stackTrace);
     }
   }
 
