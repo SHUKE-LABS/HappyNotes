@@ -129,6 +129,27 @@ class MockAccountService extends _i1.Mock implements _i4.AccountService {
       ) as _i5.Future<void>);
 
   @override
+  _i5.Future<void> restoreUserSession({String? token}) => (super.noSuchMethod(
+        Invocation.method(
+          #restoreUserSession,
+          [],
+          {#token: token},
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<bool> refreshUserSettings({String? token}) => (super.noSuchMethod(
+        Invocation.method(
+          #refreshUserSettings,
+          [],
+          {#token: token},
+        ),
+        returnValue: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
+
+  @override
   _i5.Future<String?> getToken() => (super.noSuchMethod(
         Invocation.method(
           #getToken,

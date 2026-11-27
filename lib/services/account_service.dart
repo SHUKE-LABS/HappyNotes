@@ -12,6 +12,8 @@ class AccountService {
   final UserSettingsService _userSettingsService;
   final TokenUtils _tokenUtils;
   Future<void>? _refreshTokenInFlight;
+  int _sessionVersion = 0;
+  String? _sessionToken;
 
   AccountService({
     required AccountApi accountApi,
@@ -56,7 +58,8 @@ class AccountService {
     }
 
     if (confirmation.length != 1) {
-      throw ArgumentError('Exactly one account deletion confirmation is required');
+      throw ArgumentError(
+          'Exactly one account deletion confirmation is required');
     }
 
     final apiResult = (await _accountApi.deleteAccount(confirmation)).data;
@@ -66,7 +69,8 @@ class AccountService {
     throw ApiException(apiResult);
   }
 
-  Future<dynamic> register(String username, String email, String password) async {
+  Future<dynamic> register(
+      String username, String email, String password) async {
     var params = {'username': username, 'email': email, 'password': password};
     var apiResult = (await _accountApi.register(params)).data;
     if (apiResult['successful']) {
@@ -81,10 +85,11 @@ class AccountService {
     try {
       var apiResponse = (await _accountApi.refreshToken()).data;
       if (apiResponse['successful']) {
-        await _storeToken(apiResponse['data']['token']);
+        await _storeToken(apiResponse['data']['token'], loadSettings: false);
         SeqLogger.info('Token refreshed successfully');
       } else {
-        SeqLogger.severe('Token refresh failed: ${apiResponse['message'] ?? 'Unknown error'}');
+        SeqLogger.severe(
+            'Token refresh failed: ${apiResponse['message'] ?? 'Unknown error'}');
         throw ApiException(apiResponse);
       }
     } catch (e) {
@@ -95,15 +100,24 @@ class AccountService {
 
   final _tokenKey = 'accessToken';
   final _baseUrlKey = 'baseUrl';
-  final String _payloadUserIdKey = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
-  final String _payloadEmailKey = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
+  final String _payloadUserIdKey =
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier';
+  final String _payloadEmailKey =
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress';
 
-  Future<void> _storeToken(String token) async {
+  Future<void> _storeToken(String token, {bool loadSettings = true}) async {
+    // Invalidate any background settings refresh tied to the previous token.
+    _sessionVersion++;
+    _sessionToken = token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_baseUrlKey, AppConfig.apiBaseUrl);
     await prefs.setString(_tokenKey, token);
     try {
-      await setUserSession(token: token);
+      if (loadSettings) {
+        await setUserSession(token: token);
+      } else {
+        await restoreUserSession(token: token);
+      }
     } catch (e) {
       await _clearToken();
       rethrow;
@@ -111,50 +125,82 @@ class AccountService {
   }
 
   Future<void> setUserSession({String? token}) async {
+    await restoreUserSession(token: token);
+    await refreshUserSettings(token: token);
+  }
+
+  Future<void> restoreUserSession({String? token}) async {
     token ??= await getToken();
-    var payload = await _tokenUtils.decodeToken(token!);
+    final activeToken = token!;
+    if (_sessionToken != activeToken) {
+      _sessionVersion++;
+      _sessionToken = activeToken;
+    }
+    var payload = await _tokenUtils.decodeToken(activeToken);
     UserSession().id = int.parse(payload[_payloadUserIdKey]);
     UserSession().email = payload[_payloadEmailKey];
-    UserSession().userSettings = await _userSettingsService.getAll();
+    await _userSettingsService.loadPersistedSettings();
+  }
+
+  Future<bool> refreshUserSettings({String? token}) async {
+    final expectedSessionVersion = _sessionVersion;
+    final expectedToken = token ?? _sessionToken;
+    await _userSettingsService.getAll(
+      shouldApply: () =>
+          _sessionVersion == expectedSessionVersion &&
+          _sessionToken == expectedToken,
+    );
+    return _sessionVersion == expectedSessionVersion &&
+        _sessionToken == expectedToken;
   }
 
   Future<void> _clearToken() async {
+    _sessionVersion++;
+    _sessionToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_baseUrlKey);
+    await _userSettingsService.clearPersistedSettings();
     UserSession().id = null;
     UserSession().email = null;
     UserSession().userSettings = null;
   }
 
   Future<String?> getToken() async {
-    SeqLogger.info('AccountService.getToken: Getting token from SharedPreferences...');
+    SeqLogger.info(
+        'AccountService.getToken: Getting token from SharedPreferences...');
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
-      SeqLogger.info('AccountService.getToken: Token exists in storage: ${token != null && token.isNotEmpty}');
+      SeqLogger.info(
+          'AccountService.getToken: Token exists in storage: ${token != null && token.isNotEmpty}');
 
       if (token != null && token != '') {
         try {
           var remainingTime = await _tokenUtils.getTokenRemainingTime(token);
-          SeqLogger.info('AccountService.getToken: Token remaining time: ${remainingTime.inDays} days, ${remainingTime.inHours} hours');
+          SeqLogger.info(
+              'AccountService.getToken: Token remaining time: ${remainingTime.inDays} days, ${remainingTime.inHours} hours');
 
           if (remainingTime.inDays <= 30) {
-            SeqLogger.info('AccountService.getToken: Token needs refresh (${remainingTime.inDays} days remaining) - starting fire-and-forget refresh');
+            SeqLogger.info(
+                'AccountService.getToken: Token needs refresh (${remainingTime.inDays} days remaining) - starting fire-and-forget refresh');
             // Fire-and-forget refresh for all platforms - cleaner and faster
             _refreshTokenFireAndForget();
           } else {
-            SeqLogger.info('AccountService.getToken: Token is fresh, no refresh needed');
+            SeqLogger.info(
+                'AccountService.getToken: Token is fresh, no refresh needed');
           }
         } catch (e) {
-          SeqLogger.severe('AccountService.getToken: Error checking token expiration: ${e.toString()}');
+          SeqLogger.severe(
+              'AccountService.getToken: Error checking token expiration: ${e.toString()}');
           // Continue with existing token if expiration check fails
         }
       }
       return token;
     } catch (e) {
-      SeqLogger.severe('AccountService.getToken: Critical error accessing SharedPreferences: $e');
+      SeqLogger.severe(
+          'AccountService.getToken: Critical error accessing SharedPreferences: $e');
       return null;
     }
   }
@@ -168,12 +214,15 @@ class AccountService {
 
     // Use unawaited to explicitly indicate this is fire-and-forget
     // ignore: unawaited_futures
-    _refreshTokenInFlight = _refreshToken().timeout(const Duration(seconds: 30)).then(
+    _refreshTokenInFlight =
+        _refreshToken().timeout(const Duration(seconds: 30)).then(
       (value) {
-        SeqLogger.info('AccountService: Fire-and-forget token refresh completed successfully');
+        SeqLogger.info(
+            'AccountService: Fire-and-forget token refresh completed successfully');
       },
     ).catchError((error) {
-      SeqLogger.severe('AccountService: Fire-and-forget token refresh failed: $error');
+      SeqLogger.severe(
+          'AccountService: Fire-and-forget token refresh failed: $error');
       // Error is logged but doesn't affect the current operation
     }).whenComplete(() {
       _refreshTokenInFlight = null;
@@ -181,28 +230,33 @@ class AccountService {
   }
 
   Future<bool> isValidToken() async {
-    SeqLogger.info('AccountService.isValidToken: Starting network token validation...');
+    SeqLogger.info(
+        'AccountService.isValidToken: Starting local token validation...');
     if (await _isSameEnv()) {
       // Get token directly without triggering refresh to avoid race conditions
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
-      SeqLogger.info('AccountService.isValidToken: Retrieved token directly from storage: ${token != null && token.isNotEmpty}');
+      SeqLogger.info(
+          'AccountService.isValidToken: Retrieved token directly from storage: ${token != null && token.isNotEmpty}');
 
       if (token != null && token != '') {
         try {
           final remainingTime = await _tokenUtils.getTokenRemainingTime(token);
           final isValid = remainingTime.inSeconds >= 1;
-          SeqLogger.info('AccountService.isValidToken: Token remaining: ${remainingTime.inSeconds}s, valid: $isValid');
+          SeqLogger.info(
+              'AccountService.isValidToken: Token remaining: ${remainingTime.inSeconds}s, valid: $isValid');
           return isValid;
         } catch (e) {
-          SeqLogger.severe('AccountService.isValidToken: Token validation error: ${e.toString()}');
+          SeqLogger.severe(
+              'AccountService.isValidToken: Token validation error: ${e.toString()}');
           return false;
         }
       } else {
         SeqLogger.info('AccountService.isValidToken: No token available');
       }
     } else {
-      SeqLogger.info('AccountService.isValidToken: Environment changed, token invalid');
+      SeqLogger.info(
+          'AccountService.isValidToken: Environment changed, token invalid');
     }
     return false;
   }

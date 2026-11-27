@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_notes/apis/user_settings_api.dart';
@@ -5,6 +7,7 @@ import 'package:happy_notes/app_constants.dart';
 import 'package:happy_notes/entities/user_settings.dart';
 import 'package:happy_notes/screens/account/user_session.dart';
 import 'package:happy_notes/services/user_settings_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeUserSettingsApi extends UserSettingsApi {
   Response<dynamic>? getAllResponse;
@@ -32,6 +35,7 @@ void main() {
     late UserSettingsService service;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       UserSession().id = 123;
       UserSession().email = 'test@example.com';
       UserSession().userSettings = null;
@@ -63,7 +67,17 @@ void main() {
       final settings = await service.getAll();
 
       expect(settings, hasLength(1));
-      expect(UserSession().settings(AppConstants.privateNoteOnlyIsEnabled), '1');
+      expect(
+          UserSession().settings(AppConstants.privateNoteOnlyIsEnabled), '1');
+      final prefs = await SharedPreferences.getInstance();
+      expect(jsonDecode(prefs.getString('userSettings')!), [
+        {
+          'id': 1,
+          'userId': 123,
+          'settingName': AppConstants.privateNoteOnlyIsEnabled,
+          'settingValue': '1',
+        },
+      ]);
     });
 
     test('upsert appends missing settings in session', () async {
@@ -80,18 +94,36 @@ void main() {
         data: {'successful': true},
       );
 
-      final result = await service.upsert(AppConstants.privateNoteOnlyIsEnabled, '1');
+      final result =
+          await service.upsert(AppConstants.privateNoteOnlyIsEnabled, '1');
 
       expect(result, true);
       expect(fakeApi.lastUpsertPayload, {
         'settingName': AppConstants.privateNoteOnlyIsEnabled,
         'settingValue': '1',
       });
-      expect(UserSession().settings(AppConstants.privateNoteOnlyIsEnabled), '1');
+      expect(
+          UserSession().settings(AppConstants.privateNoteOnlyIsEnabled), '1');
       expect(UserSession().settings(AppConstants.pageSize), '20');
+      final prefs = await SharedPreferences.getInstance();
+      expect(jsonDecode(prefs.getString('userSettings')!), [
+        {
+          'id': 1,
+          'userId': 123,
+          'settingName': AppConstants.pageSize,
+          'settingValue': '20',
+        },
+        {
+          'id': 0,
+          'userId': 123,
+          'settingName': AppConstants.privateNoteOnlyIsEnabled,
+          'settingValue': '1',
+        },
+      ]);
     });
 
-    test('getAll preserves existing session list identity when refreshing', () async {
+    test('getAll preserves existing session list identity when refreshing',
+        () async {
       final existingSettings = <UserSettings>[
         UserSettings(
           id: 1,
@@ -119,8 +151,82 @@ void main() {
 
       expect(identical(UserSession().userSettings, existingSettings), true);
       expect(existingSettings, hasLength(1));
-      expect(existingSettings.first.settingName, AppConstants.privateNoteOnlyIsEnabled);
+      expect(existingSettings.first.settingName,
+          AppConstants.privateNoteOnlyIsEnabled);
       expect(existingSettings.first.settingValue, '1');
+    });
+
+    test('loadPersistedSettings restores settings without an API call',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'userSettings': jsonEncode([
+          {
+            'id': 3,
+            'userId': 123,
+            'settingName': AppConstants.pageSize,
+            'settingValue': '30',
+          },
+        ]),
+      });
+
+      final settings = await service.loadPersistedSettings();
+
+      expect(settings, hasLength(1));
+      expect(UserSession().settings(AppConstants.pageSize), '30');
+    });
+
+    test('getAll skips applying results when the session is stale', () async {
+      UserSession().userSettings = [
+        UserSettings(
+          id: 1,
+          userId: 123,
+          settingName: AppConstants.pageSize,
+          settingValue: '20',
+        ),
+      ];
+      SharedPreferences.setMockInitialValues({
+        'userSettings': jsonEncode(UserSession()
+            .userSettings!
+            .map((setting) => setting.toJson())
+            .toList()),
+      });
+      fakeApi.getAllResponse = Response<dynamic>(
+        requestOptions: RequestOptions(path: '/settings/getAll'),
+        data: {
+          'data': [
+            {
+              'id': 2,
+              'userId': 123,
+              'settingName': AppConstants.privateNoteOnlyIsEnabled,
+              'settingValue': '1',
+            },
+          ],
+        },
+      );
+
+      await service.getAll(shouldApply: () => false);
+
+      expect(UserSession().settings(AppConstants.pageSize), '20');
+      expect(UserSession().settings(AppConstants.privateNoteOnlyIsEnabled),
+          isNull);
+      final prefs = await SharedPreferences.getInstance();
+      expect(jsonDecode(prefs.getString('userSettings')!), [
+        {
+          'id': 1,
+          'userId': 123,
+          'settingName': AppConstants.pageSize,
+          'settingValue': '20',
+        },
+      ]);
+    });
+
+    test('clearPersistedSettings removes the cached settings', () async {
+      SharedPreferences.setMockInitialValues({'userSettings': '[]'});
+
+      await service.clearPersistedSettings();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('userSettings'), isNull);
     });
   });
 }

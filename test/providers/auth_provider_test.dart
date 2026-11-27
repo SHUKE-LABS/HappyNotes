@@ -1,7 +1,9 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:mockito/annotations.dart';
-import 'package:happy_notes/entities/user_settings.dart';
 import 'package:happy_notes/providers/auth_provider.dart';
 import 'package:happy_notes/services/account_service.dart';
 import 'package:happy_notes/services/google_auth_service.dart';
@@ -34,7 +36,8 @@ void main() {
       if (GetIt.instance.isRegistered<GoogleAuthService>()) {
         GetIt.instance.unregister<GoogleAuthService>();
       }
-      GetIt.instance.registerSingleton<GoogleAuthService>(mockGoogleAuthService);
+      GetIt.instance
+          .registerSingleton<GoogleAuthService>(mockGoogleAuthService);
 
       // Clear UserSession
       UserSession().id = null;
@@ -69,9 +72,13 @@ void main() {
     });
 
     test('initAuth should handle valid token correctly', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) async => true);
 
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
@@ -80,11 +87,15 @@ void main() {
       expect(authProvider.token, 'valid_token');
       expect(authProvider.isLoading, false);
       expect(authProvider.isInitialized, true);
-      verify(mockAccountService.setUserSession(token: 'valid_token')).called(1);
+      verify(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .called(1);
+      verify(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .called(1);
     });
 
     test('initAuth should handle invalid token correctly', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'invalid_token');
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'invalid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => false);
       when(mockAccountService.logout()).thenAnswer((_) async {});
 
@@ -110,10 +121,12 @@ void main() {
       expect(authProvider.isInitialized, true);
     });
 
-    test('initAuth should fail when session setup fails without cached settings', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+    test('initAuth should fail when local session restoration fails', () async {
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenThrow(Exception('settings fetch failed'));
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenThrow(Exception('token decode failed'));
 
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero);
@@ -121,18 +134,20 @@ void main() {
       expect(authProvider.isAuthenticated, false);
       expect(authProvider.token, null);
       expect(authProvider.isInitialized, true);
-      expect(authProvider.error, contains('settings fetch failed'));
+      expect(authProvider.error, contains('token decode failed'));
     });
 
-    test('initAuth should keep auth state when cached settings exist and session refresh fails', () async {
-      UserSession().userSettings = [
-        UserSettings(id: 1, userId: 123, settingName: 'privateNoteOnlyIsEnabled', settingValue: '1'),
-      ];
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+    test('initAuth should not expose background settings failures', () async {
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenThrow(Exception('settings fetch failed'));
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenThrow(Exception('settings fetch failed'));
 
       authProvider = AuthProvider();
+      await Future.delayed(Duration.zero);
       await Future.delayed(Duration.zero);
 
       expect(authProvider.isAuthenticated, true);
@@ -141,12 +156,77 @@ void main() {
       expect(authProvider.isInitialized, true);
     });
 
+    test('initAuth completes within two seconds while settings refresh hangs',
+        () async {
+      final refreshStarted = Completer<void>();
+      final refreshNeverCompletes = Completer<bool>();
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) {
+        refreshStarted.complete();
+        return refreshNeverCompletes.future;
+      });
+
+      authProvider = AuthProvider();
+      final initialized = Completer<void>();
+      authProvider.addListener(() {
+        if (authProvider.isInitialized && !initialized.isCompleted) {
+          initialized.complete();
+        }
+      });
+      if (authProvider.isInitialized && !initialized.isCompleted) {
+        initialized.complete();
+      }
+
+      await initialized.future.timeout(const Duration(seconds: 2));
+      await refreshStarted.future.timeout(const Duration(seconds: 2));
+
+      expect(authProvider.isAuthenticated, true);
+      expect(authProvider.error, isNull);
+      verify(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .called(1);
+    });
+
+    test('a 401 from background settings refresh signs out', () async {
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: '/settings/getAll'),
+          response: Response<dynamic>(
+            requestOptions: RequestOptions(path: '/settings/getAll'),
+            statusCode: 401,
+          ),
+        ),
+      );
+      when(mockAccountService.logout()).thenAnswer((_) async {});
+      when(mockGoogleAuthService.signOut()).thenAnswer((_) async {});
+
+      authProvider = AuthProvider();
+      await Future.delayed(Duration.zero);
+      await Future.delayed(Duration.zero);
+
+      expect(authProvider.isAuthenticated, false);
+      expect(authProvider.error, isNull);
+      verify(mockAccountService.logout()).called(1);
+      verify(mockGoogleAuthService.signOut()).called(1);
+    });
+
     test('login should handle successful login correctly', () async {
       when(mockAccountService.getToken()).thenAnswer((_) async => null);
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.login('user', 'pass')).thenAnswer((_) async => {});
+      when(mockAccountService.login('user', 'pass'))
+          .thenAnswer((_) async => {});
       when(mockAccountService.getToken()).thenAnswer((_) async => 'new_token');
 
       final result = await authProvider.login('user', 'pass');
@@ -164,7 +244,8 @@ void main() {
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.login('user', 'wrong_pass')).thenThrow(Exception('Invalid credentials'));
+      when(mockAccountService.login('user', 'wrong_pass'))
+          .thenThrow(Exception('Invalid credentials'));
 
       final result = await authProvider.login('user', 'wrong_pass');
 
@@ -176,13 +257,16 @@ void main() {
       expect(authProvider.isLoading, false);
     });
 
-    test('signInWithGoogle should handle successful sign-in correctly', () async {
+    test('signInWithGoogle should handle successful sign-in correctly',
+        () async {
       when(mockAccountService.getToken()).thenAnswer((_) async => null);
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.googleLogin('id_token')).thenAnswer((_) async => {});
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'google_token');
+      when(mockAccountService.googleLogin('id_token'))
+          .thenAnswer((_) async => {});
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'google_token');
 
       final result = await authProvider.signInWithGoogle('id_token');
 
@@ -199,7 +283,8 @@ void main() {
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.googleLogin('bad_token')).thenThrow(Exception('Invalid idToken'));
+      when(mockAccountService.googleLogin('bad_token'))
+          .thenThrow(Exception('Invalid idToken'));
 
       final result = await authProvider.signInWithGoogle('bad_token');
 
@@ -215,17 +300,20 @@ void main() {
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.register('user', 'email@test.com', 'pass')).thenAnswer((_) async => {});
+      when(mockAccountService.register('user', 'email@test.com', 'pass'))
+          .thenAnswer((_) async => {});
       when(mockAccountService.getToken()).thenAnswer((_) async => 'reg_token');
 
-      final result = await authProvider.register('user', 'email@test.com', 'pass');
+      final result =
+          await authProvider.register('user', 'email@test.com', 'pass');
 
       expect(result, true);
       expect(authProvider.isAuthenticated, true);
       expect(authProvider.token, 'reg_token');
       expect(authProvider.error, null);
       expect(authProvider.isLoading, false);
-      verify(mockAccountService.register('user', 'email@test.com', 'pass')).called(1);
+      verify(mockAccountService.register('user', 'email@test.com', 'pass'))
+          .called(1);
     });
 
     test('register should handle failed registration correctly', () async {
@@ -233,9 +321,11 @@ void main() {
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
 
-      when(mockAccountService.register('user', 'invalid_email', 'pass')).thenThrow(Exception('Invalid email'));
+      when(mockAccountService.register('user', 'invalid_email', 'pass'))
+          .thenThrow(Exception('Invalid email'));
 
-      final result = await authProvider.register('user', 'invalid_email', 'pass');
+      final result =
+          await authProvider.register('user', 'invalid_email', 'pass');
 
       expect(result, false);
       expect(authProvider.error, contains('Invalid email'));
@@ -247,9 +337,13 @@ void main() {
 
     test('logout should clear authentication state', () async {
       // Setup authenticated state
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) async => true);
 
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero); // Let initAuth complete
@@ -268,59 +362,80 @@ void main() {
     });
 
     test('deleteAccount logs out only after the API succeeds', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) async => true);
 
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero);
 
-      when(mockAccountService.deleteAccount(password: 'correct-password')).thenAnswer((_) async => {});
+      when(mockAccountService.deleteAccount(password: 'correct-password'))
+          .thenAnswer((_) async => {});
       when(mockAccountService.logout()).thenAnswer((_) async {});
       when(mockGoogleAuthService.signOut()).thenAnswer((_) async {});
 
-      final result = await authProvider.deleteAccount(password: 'correct-password');
+      final result =
+          await authProvider.deleteAccount(password: 'correct-password');
 
       expect(result, isTrue);
       expect(authProvider.isAuthenticated, isFalse);
-      verify(mockAccountService.deleteAccount(password: 'correct-password')).called(1);
+      verify(mockAccountService.deleteAccount(password: 'correct-password'))
+          .called(1);
       verify(mockAccountService.logout()).called(1);
       verify(mockGoogleAuthService.signOut()).called(1);
     });
 
     test('deleteAccount stays successful when local logout fails', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) async => true);
 
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero);
 
-      when(mockAccountService.deleteAccount(password: 'correct-password')).thenAnswer((_) async => {});
-      when(mockAccountService.logout()).thenThrow(Exception('local logout failed'));
+      when(mockAccountService.deleteAccount(password: 'correct-password'))
+          .thenAnswer((_) async => {});
+      when(mockAccountService.logout())
+          .thenThrow(Exception('local logout failed'));
 
-      final result = await authProvider.deleteAccount(password: 'correct-password');
+      final result =
+          await authProvider.deleteAccount(password: 'correct-password');
 
       expect(result, isTrue);
       expect(authProvider.isAuthenticated, isFalse);
       expect(authProvider.error, isNull);
       expect(authProvider.isLoading, isFalse);
-      verify(mockAccountService.deleteAccount(password: 'correct-password')).called(1);
+      verify(mockAccountService.deleteAccount(password: 'correct-password'))
+          .called(1);
       verify(mockAccountService.logout()).called(1);
       verifyNever(mockGoogleAuthService.signOut());
     });
 
-    test('deleteAccount keeps the session when the API rejects confirmation', () async {
-      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+    test('deleteAccount keeps the session when the API rejects confirmation',
+        () async {
+      when(mockAccountService.getToken())
+          .thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
-      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+      when(mockAccountService.restoreUserSession(token: 'valid_token'))
+          .thenAnswer((_) async {});
+      when(mockAccountService.refreshUserSettings(token: 'valid_token'))
+          .thenAnswer((_) async => true);
       authProvider = AuthProvider();
       await Future.delayed(Duration.zero);
 
       when(mockAccountService.deleteAccount(password: 'wrong-password'))
           .thenThrow(Exception('Wrong password'));
 
-      final result = await authProvider.deleteAccount(password: 'wrong-password');
+      final result =
+          await authProvider.deleteAccount(password: 'wrong-password');
 
       expect(result, isFalse);
       expect(authProvider.isAuthenticated, isTrue);
@@ -339,7 +454,8 @@ void main() {
         notified = true;
       });
 
-      when(mockAccountService.login('user', 'pass')).thenAnswer((_) async => {});
+      when(mockAccountService.login('user', 'pass'))
+          .thenAnswer((_) async => {});
       when(mockAccountService.getToken()).thenAnswer((_) async => 'token');
 
       await authProvider.login('user', 'pass');
