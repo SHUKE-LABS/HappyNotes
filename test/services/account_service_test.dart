@@ -14,6 +14,8 @@ import '../test_helpers/seq_logger_setup.dart';
 class FakeAccountApi extends AccountApi {
   int refreshCalls = 0;
   bool googleLoginShouldFail = false;
+  Map<String, dynamic>? deleteConfirmation;
+  bool deleteAccountShouldFail = false;
 
   @override
   Future<Response> login(Map<String, dynamic> params) async {
@@ -43,6 +45,24 @@ class FakeAccountApi extends AccountApi {
         'successful': true,
         'data': {'token': 'fresh-google-token'},
       },
+    );
+  }
+
+  @override
+  Future<Response> deleteAccount(Map<String, dynamic> confirmation) async {
+    deleteConfirmation = Map<String, dynamic>.from(confirmation);
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: '/Account/DeleteAccount'),
+      data: deleteAccountShouldFail
+          ? {
+              'successful': false,
+              'message': 'Account deletion confirmation failed',
+              'errorCode': 400,
+            }
+          : {
+              'successful': true,
+              'message': 'Your account and all owned data have been deleted',
+            },
     );
   }
 
@@ -141,6 +161,32 @@ void main() {
       fakeAccountApi.googleLoginShouldFail = true;
 
       expect(() => accountService.googleLogin('bad-id-token'), throwsA(isA<ApiException>()));
+    });
+
+    test('deleteAccount sends only a password and leaves token cleanup to AuthProvider', () async {
+      await accountService.deleteAccount(password: 'correct-password');
+
+      expect(fakeAccountApi.deleteConfirmation, {'password': 'correct-password'});
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('accessToken'), 'stored-token');
+    });
+
+    test('deleteAccount sends only a Google ID token', () async {
+      await accountService.deleteAccount(idToken: 'fresh-id-token');
+
+      expect(fakeAccountApi.deleteConfirmation, {'idToken': 'fresh-id-token'});
+    });
+
+    test('deleteAccount preserves the token when the API rejects confirmation', () async {
+      fakeAccountApi.deleteAccountShouldFail = true;
+
+      await expectLater(
+        accountService.deleteAccount(password: 'wrong-password'),
+        throwsA(isA<ApiException>()),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('accessToken'), 'stored-token');
     });
   });
 }

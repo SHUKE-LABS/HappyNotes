@@ -156,6 +156,25 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> deleteAccount({String? password, String? idToken}) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _accountService.deleteAccount(password: password, idToken: idToken);
+      await logout();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();

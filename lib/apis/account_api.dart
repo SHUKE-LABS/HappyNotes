@@ -26,6 +26,10 @@ class AccountApi {
     return await _dio.post('/account/googleLogin', data: {'idToken': idToken}, options: options);
   }
 
+  Future<Response> deleteAccount(Map<String, dynamic> confirmation) async {
+    return await _dio.delete('/Account/DeleteAccount', data: confirmation);
+  }
+
   Future<Response> refreshToken() async {
     return await _dio.post('/account/refreshToken', data: {});
   }

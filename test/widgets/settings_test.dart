@@ -48,6 +48,9 @@ class StubAuthProvider extends ChangeNotifier implements AuthProvider {
   Future<bool> signInWithGoogle(String idToken) async => false;
 
   @override
+  Future<bool> deleteAccount({String? password, String? idToken}) async => false;
+
+  @override
   Future<void> logout() async {}
 
   @override
@@ -122,6 +125,27 @@ void main() {
       expect(find.text('Mastodon Sync'), findsOneWidget);
       expect(find.text('Fanfou Sync'), findsOneWidget);
       expect(find.text('Ember Sync'), findsOneWidget);
+    });
+
+    testWidgets('opens the account deletion flow from Settings', (tester) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AuthProvider>.value(
+          value: StubAuthProvider(),
+          child: const MaterialApp(home: Settings()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView), const Offset(0, -1000));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete account'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete your account'), findsOneWidget);
+      expect(
+        find.textContaining('Copies already posted to Telegram'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('shows the store version and build number', (tester) async {
