@@ -163,16 +163,28 @@ class AuthProvider with ChangeNotifier {
 
     try {
       await _accountService.deleteAccount(password: password, idToken: idToken);
-      await logout();
-      return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
-      return false;
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return false;
     }
+
+    try {
+      await logout();
+    } catch (e, stackTrace) {
+      SeqLogger.warning(
+        'Account deletion succeeded, but local logout failed: $e',
+        e,
+        stackTrace,
+      );
+      _token = null;
+      _error = null;
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 
   Future<void> logout() async {

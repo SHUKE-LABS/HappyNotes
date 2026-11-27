@@ -90,6 +90,31 @@ class FakeGoogleAuthService extends GoogleAuthService {
   }
 }
 
+class AuthSwitchHome extends StatelessWidget {
+  const AuthSwitchHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        if (!authProvider.isAuthenticated) {
+          return const Text('Sign in');
+        }
+
+        return ElevatedButton(
+          key: const ValueKey<String>('open-delete-account'),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DeleteAccountPage()),
+            );
+          },
+          child: const Text('Open delete account'),
+        );
+      },
+    );
+  }
+}
+
 void main() {
   late FakeGoogleAuthService googleAuthService;
 
@@ -112,6 +137,19 @@ void main() {
         child: const MaterialApp(home: DeleteAccountPage()),
       ),
     );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpNavigationPage(
+      WidgetTester tester, FakeAuthProvider authProvider) async {
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthProvider>.value(
+        value: authProvider,
+        child: const MaterialApp(home: AuthSwitchHome()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey<String>('open-delete-account')));
     await tester.pumpAndSettle();
   }
 
@@ -189,5 +227,35 @@ void main() {
     expect(googleAuthService.signInCalls, 1);
     expect(authProvider.deleteCalls, 0);
     expect(authProvider.isAuthenticated, isTrue);
+  });
+
+  testWidgets('returns to the sign-in screen after password deletion',
+      (tester) async {
+    final authProvider = FakeAuthProvider();
+    await pumpNavigationPage(tester, authProvider);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('delete-account-password')),
+      'correct-password',
+    );
+    await confirmDeletion(tester);
+
+    expect(find.byType(DeleteAccountPage), findsNothing);
+    expect(find.text('Sign in'), findsOneWidget);
+  });
+
+  testWidgets('returns to the sign-in screen after Google deletion',
+      (tester) async {
+    final authProvider = FakeAuthProvider();
+    await pumpNavigationPage(tester, authProvider);
+
+    await tester.tap(find.text('Confirm with Google'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign in with Google again'));
+    await tester.pumpAndSettle();
+    await confirmDeletion(tester);
+
+    expect(find.byType(DeleteAccountPage), findsNothing);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 }

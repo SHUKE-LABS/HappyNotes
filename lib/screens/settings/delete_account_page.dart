@@ -132,6 +132,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
         ? await authProvider.deleteAccount(password: _passwordController.text)
         : await authProvider.deleteAccount(idToken: _googleIdToken);
 
+    if (deleted && mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
     if (!deleted && mounted) {
       Util.showError(
         ScaffoldMessenger.of(context),

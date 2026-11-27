@@ -288,6 +288,28 @@ void main() {
       verify(mockGoogleAuthService.signOut()).called(1);
     });
 
+    test('deleteAccount stays successful when local logout fails', () async {
+      when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
+      when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
+      when(mockAccountService.setUserSession(token: 'valid_token')).thenAnswer((_) async {});
+
+      authProvider = AuthProvider();
+      await Future.delayed(Duration.zero);
+
+      when(mockAccountService.deleteAccount(password: 'correct-password')).thenAnswer((_) async => {});
+      when(mockAccountService.logout()).thenThrow(Exception('local logout failed'));
+
+      final result = await authProvider.deleteAccount(password: 'correct-password');
+
+      expect(result, isTrue);
+      expect(authProvider.isAuthenticated, isFalse);
+      expect(authProvider.error, isNull);
+      expect(authProvider.isLoading, isFalse);
+      verify(mockAccountService.deleteAccount(password: 'correct-password')).called(1);
+      verify(mockAccountService.logout()).called(1);
+      verifyNever(mockGoogleAuthService.signOut());
+    });
+
     test('deleteAccount keeps the session when the API rejects confirmation', () async {
       when(mockAccountService.getToken()).thenAnswer((_) async => 'valid_token');
       when(mockAccountService.isValidToken()).thenAnswer((_) async => true);
