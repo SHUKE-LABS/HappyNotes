@@ -2,7 +2,10 @@
 
 _Generated from release tags with `bash bin/generate-changelog`._
 
-## v2.4.1 (2026-11-28)
+## v2.5.0 … v2.4.1 (2026-11-28)
+
+### Features
+- feat: add Ember sync mode toggle (#84)
 
 ### Fixes
 - fix: prevent Play upload auto-review submission (#83)
